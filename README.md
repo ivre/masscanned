@@ -64,6 +64,15 @@ $ cargo build
 ...
 ```
 
+## Use it
+
+A good use of **masscanned** is to deploy it on a VPS with one or more public IP addresses.
+
+To use the results, the best way is to capture all network traffic on the interface **masscanned** is listening to/responding on.
+The pcaps can then be analyzed using [zeek](https://zeek.org/) and the output files can typically be pushed in an instance of **IVRE**.
+
+A documentation on how to deploy an instance of **masscanned** on a VPS is coming (see [Issue #2](https://github.com/ivre/masscanned/issues/2)).
+
 ## Protocols
 
 ### Layer 2
