@@ -1,0 +1,43 @@
+# This file is part of masscanned.
+# Copyright 2021 - The IVRE project
+#
+# Masscanned is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Masscanned is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
+
+[package]
+name = "masscanned"
+version = "0.2.0"
+authors = ["_Frky <3105926+Frky@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+pcap = "0.7.0"
+pcap-file = "1.1.1"
+pnet = "0.26.0"
+# pnet = { path = "libpnet" }
+clap = "2.33.3"
+log = "0.4.11"
+stderrlog = "0.5.0"
+itertools = "0.9.0"
+rand = "0.7.3"
+dns-parser = "0.8.0"
+netdevice = "0.1.1"
+bitflags = "1.2.1"
+lazy_static = "1.4.0"
+siphasher = "0.3"
+chrono = "0.4.19"
+byteorder = "1.4.3"
+
+[[bin]]
+name = "masscanned"
+path = "src/masscanned.rs"
