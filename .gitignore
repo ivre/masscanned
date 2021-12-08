@@ -5,6 +5,8 @@ Cargo.lock
 # Vim temporary files
 *.swp
 *.swo
+# Emacs temporary files
+*~
 
 *__pycache__*
 test/res/*

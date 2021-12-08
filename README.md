@@ -1,3 +1,5 @@
+[![Build masscanned](https://github.com/ivre/masscanned/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/ivre/masscanned/actions/workflows/test.yml?branch=master)
+
 # Masscanned
 
 **Masscanned** (name inspired, of course, by [masscan](https://github.com/robertdavidgraham/masscan))

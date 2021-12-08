@@ -42,7 +42,8 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.INFO)
 LOG.addHandler(ch)
 
-conf.iface = 'tap0'
+IFACE = "tap0"
+
 conf.verb = 0
 
 # prepare configuration file for masscanned
@@ -52,7 +53,8 @@ with open(ipfile, "w") as f:
     f.write("{}\n".format(IPV6_ADDR))
 
 # create test interface
-tap = TunTapInterface(resolve_iface(conf.iface))
+tap = TunTapInterface(IFACE)
+conf.iface = resolve_iface(IFACE)
 
 # set interface
 subprocess.run("ip a a dev {} 192.0.0.2".format(conf.iface), shell=True)
@@ -67,12 +69,13 @@ masscanned = subprocess.Popen("RUST_BACKTRACE=1 ./target/debug/masscanned -vvvvv
 sleep(1)
 
 try:
-    test_all(tap)
+    result = test_all(tap)
 except AssertionError:
-    pass
+    result = -1
 
 # terminate masscanned
 masscanned.kill()
 # terminate capture
 sleep(2)
 tcpdump.kill()
+sys.exit(result)

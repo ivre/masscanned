@@ -1,0 +1,82 @@
+# This file is part of masscanned.
+# Copyright 2021 - The IVRE project
+#
+# Masscanned is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Masscanned is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
+
+name: Build masscanned
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Git checkout
+      uses: actions/checkout@v2
+
+    - name: Get Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Run cargo build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+
+    - name: Run cargo test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+
+    - name: Create build archive
+      run: tar cf masscanned.tar target/debug/masscanned
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: masscanned.tar
+        path: masscanned.tar
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Git checkout
+      uses: actions/checkout@v2
+
+    - name: Get binary
+      uses: actions/download-artifact@v2
+      with:
+        name: masscanned.tar
+
+    - name: Extract build archive
+      run: tar xf masscanned.tar
+
+    - name: Use Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: sudo pip install -r test/requirements.txt
+
+    - name: Run tests
+      run: sudo python test/test_masscanned.py
+
+    - name: Display logs
+      run: echo STDOUT; cat test/res/masscanned.stdout && echo && echo STDERR && cat test/res/masscanned.stderr
+      if: failure()
