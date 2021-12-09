@@ -28,7 +28,8 @@ from scapy.interfaces import resolve_iface
 from scapy.layers.tuntap import TunTapInterface
 
 from src.all import test_all
-from src.conf import *
+from src.conf import IPV4_ADDR, IPV6_ADDR, MAC_ADDR, OUTDIR
+
 
 def setup_logs():
     ch = logging.StreamHandler()
@@ -38,6 +39,7 @@ def setup_logs():
     log.setLevel(logging.INFO)
     log.addHandler(ch)
     return log
+
 
 LOG = setup_logs()
 IFACE = "tap0"

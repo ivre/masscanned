@@ -72,7 +72,16 @@ jobs:
         python-version: 3.9
 
     - name: Install dependencies
-      run: sudo pip install -r test/requirements.txt
+      run: sudo pip install -U -r test/requirements.txt
+
+    - name: Install linting tools
+      run: sudo pip install -U flake8 black
+
+    - name: Run black
+      run: black -t py36 --check test/test_masscanned.py test/src/
+
+    - name: Run flake8
+      run: flake8 --ignore=E266,E501,W503 test/test_masscanned.py test/src/all.py
 
     - name: Run tests
       run: sudo python test/test_masscanned.py

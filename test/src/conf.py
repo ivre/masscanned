@@ -16,5 +16,5 @@
 
 IPV4_ADDR = "192.0.0.1"
 IPV6_ADDR = "2001:41d0::ab32:bdb8"
-MAC_ADDR  = "52:1c:4e:c2:a4:1f"
+MAC_ADDR = "52:1c:4e:c2:a4:1f"
 OUTDIR = "test/res/"
