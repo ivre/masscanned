@@ -55,10 +55,9 @@ tap = TunTapInterface(IFACE)
 conf.iface = resolve_iface(IFACE)
 
 # set interface
-subprocess.check_call(["ip", "addr", "add", "dev", IFACE, "192.0.0.2"])
+subprocess.check_call(["ip", "addr", "add", "dev", IFACE, "192.0.0.0/31"])
 subprocess.check_call(["ip", "link", "set", IFACE, "up"])
-subprocess.check_call(["ip", "route", "add", "192.0.0.1/32", "dev", IFACE])
-subprocess.check_call(["ip", "route", "add", "1.2.3.4/32", "dev", IFACE])
+subprocess.check_call(["ip", "route", "add", "1.2.3.4/32", "via", IPV4_ADDR])
 conf.route.resync()
 
 # start capture
