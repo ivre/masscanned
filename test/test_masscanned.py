@@ -28,7 +28,8 @@ from scapy.interfaces import resolve_iface
 from scapy.layers.tuntap import TunTapInterface
 
 from src.all import test_all
-from src.conf import *
+from src.conf import IPV4_ADDR, IPV6_ADDR, MAC_ADDR, OUTDIR
+
 
 def setup_logs():
     ch = logging.StreamHandler()
@@ -39,8 +40,11 @@ def setup_logs():
     log.addHandler(ch)
     return log
 
+
 LOG = setup_logs()
 IFACE = "tap0"
+TCPDUMP = bool(os.environ.get("USE_TCPDUMP"))
+ZEEK_PASSIVERECON = bool(os.environ.get("USE_ZEEK"))
 conf.verb = 0
 
 # prepare configuration file for masscanned
@@ -53,13 +57,33 @@ tap = TunTapInterface(IFACE)
 conf.iface = resolve_iface(IFACE)
 
 # set interface
-subprocess.check_call(["ip", "addr", "add", "dev", IFACE, "192.0.0.2"])
+subprocess.check_call(["ip", "addr", "add", "dev", IFACE, "192.0.0.0/31"])
 subprocess.check_call(["ip", "link", "set", IFACE, "up"])
+subprocess.check_call(["ip", "route", "add", "1.2.3.4/32", "via", IPV4_ADDR])
+conf.route.resync()
 
 # start capture
-tcpdump = subprocess.Popen(
-    ["tcpdump", "-enli", IFACE, "-w", os.path.join(OUTDIR, "test_capture.pcap")]
-)
+if TCPDUMP:
+    tcpdump = subprocess.Popen(
+        ["tcpdump", "-enli", IFACE, "-w", os.path.join(OUTDIR, "test_capture.pcap")]
+    )
+if ZEEK_PASSIVERECON:
+    zeek = subprocess.Popen(
+        [
+            "zeek",
+            "-C",
+            "-b",
+            "-i",
+            IFACE,
+            "/usr/share/ivre/zeek/ivre/passiverecon/bare.zeek",
+            "-e",
+            "redef tcp_content_deliver_all_resp = T; "
+            "redef tcp_content_deliver_all_orig = T; "
+            f"redef PassiveRecon::HONEYPOTS += {{ {IPV4_ADDR}, [{IPV6_ADDR}] }}",
+        ],
+        stdout=open("test/res/zeek_passiverecon.stdout", "w"),
+        stderr=open("test/res/zeek_passiverecon.stderr", "w"),
+    )
 # run masscanned
 masscanned = subprocess.Popen(
     [
@@ -89,6 +113,10 @@ except AssertionError:
 masscanned.kill()
 masscanned.wait()
 # terminate capture
-tcpdump.kill()
-tcpdump.wait()
+if TCPDUMP:
+    tcpdump.kill()
+    tcpdump.wait()
+if ZEEK_PASSIVERECON:
+    zeek.kill()
+    zeek.wait()
 sys.exit(result)
