@@ -29,20 +29,22 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 LOG.addHandler(ch)
 
-tests = list()
+tests = []
+errors = []
 
 # decorator to automatically add a function to tests
 def test(f):
+    global errors, tests
     OK = "\033[1mOK\033[0m"
     KO = "\033[1m\033[1;%dmKO\033[0m" % 31
-    global tests
     fname = f.__name__.ljust(50, '.')
     def w(iface):
         try:
             f(iface)
             LOG.info("{}{}".format(fname, OK))
         except AssertionError as e:
-            LOG.info("{}{}: {}".format(fname, KO, e))
+            LOG.error("{}{}: {}".format(fname, KO, e))
+            errors.append(fname)
     tests.append(w)
     return w
 
@@ -80,7 +82,7 @@ def check_ipv6_checksum(pkt):
 @test
 def test_arp_req(iface):
     ##### ARP #####
-    arp_req = Ether()/ARP(psrc='192.0.0.2', pdst=IPV4_ADDR)
+    arp_req = Ether(dst=ETHER_BROADCAST)/ARP(psrc='192.0.0.2', pdst=IPV4_ADDR)
     arp_repl = iface.sr1(arp_req, timeout=1)
     assert(arp_repl is not None), "expecting answer, got nothing"
     assert(ARP in arp_repl), "no ARP layer found"
@@ -425,7 +427,8 @@ def test_ipv4_udp_stun(iface):
             assert(length == 12), "expected length 12, got {}".format(length)
             assert(magic == 0x2112a442), "expected magic 0x2112a442, got 0x{:08x}".format(magic)
             assert(tid == b'\x00' * 12), "expected tid 0x000000000000000000000000, got {:x}".format(tid)
-            assert(data == bytes.fromhex("000100080001") + struct.pack(">H", sport) + bytes.fromhex("00000000")), "unexpected data"
+            assert(data[:8] == bytes.fromhex("000100080001") + struct.pack(">H", sport)), f"unexpected data {data!r}"
+            assert(len(data) == 12), f"unexpected data {data!r}"
 
 @test
 def test_ipv6_udp_stun(iface):
@@ -474,7 +477,8 @@ def test_ipv4_udp_stun_change_port(iface):
             assert(type_ == 0x0101), "expected type 0X0101, got 0x{:04x}".format(type_)
             assert(length == 12), "expected length 12, got {}".format(length)
             assert(tid == bytes.fromhex("03a3b9464dd8eb75e19481474293845c")), "expected tid 0x03a3b9464dd8eb75e19481474293845c, got %r" % tid
-            assert(data == bytes.fromhex("000100080001") + struct.pack(">H", sport) + bytes.fromhex("00000000")), "unexpected data"
+            assert(data[:8] == bytes.fromhex("000100080001") + struct.pack(">H", sport)), f"unexpected data {data!r}"
+            assert(len(data) == 12), f"unexpected data {data!r}"
 
 @test
 def test_ipv6_udp_stun_change_port(iface):
@@ -591,3 +595,4 @@ def test_all(iface):
     # execute tests
     for t in tests:
         t(iface)
+    return len(errors)
