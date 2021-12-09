@@ -23,6 +23,12 @@ import sys
 from time import sleep
 from tempfile import NamedTemporaryFile
 
+try:
+    from ivre.config import guess_prefix
+except ImportError:
+    HAS_IVRE = False
+else:
+    HAS_IVRE = True
 from scapy.config import conf
 from scapy.interfaces import resolve_iface
 from scapy.layers.tuntap import TunTapInterface
@@ -44,7 +50,10 @@ def setup_logs():
 LOG = setup_logs()
 IFACE = "tap0"
 TCPDUMP = bool(os.environ.get("USE_TCPDUMP"))
-ZEEK_PASSIVERECON = bool(os.environ.get("USE_ZEEK"))
+if HAS_IVRE:
+    ZEEK_PASSIVERECON = bool(os.environ.get("USE_ZEEK"))
+else:
+    ZEEK_PASSIVERECON = False
 conf.verb = 0
 
 # prepare configuration file for masscanned
@@ -75,7 +84,12 @@ if ZEEK_PASSIVERECON:
             "-b",
             "-i",
             IFACE,
-            "/usr/share/ivre/zeek/ivre/passiverecon/bare.zeek",
+            os.path.join(
+                guess_prefix("zeek"),
+                "ivre",
+                "passiverecon",
+                "bare.zeek",
+            ),
             "-e",
             "redef tcp_content_deliver_all_resp = T; "
             "redef tcp_content_deliver_all_orig = T; "

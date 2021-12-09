@@ -106,7 +106,7 @@ def check_ipv6_checksum(pkt):
 @test
 def test_arp_req(iface):
     ##### ARP #####
-    arp_req = Ether(dst=ETHER_BROADCAST) / ARP(psrc="192.0.0.2", pdst=IPV4_ADDR)
+    arp_req = Ether(dst=ETHER_BROADCAST) / ARP(pdst=IPV4_ADDR)
     arp_repl = iface.sr1(arp_req, timeout=1)
     assert arp_repl is not None, "expecting answer, got nothing"
     assert ARP in arp_repl, "no ARP layer found"
@@ -128,7 +128,7 @@ def test_arp_req(iface):
 @test
 def test_arp_req_other_ip(iface):
     ##### ARP #####
-    arp_req = Ether() / ARP(psrc="192.0.0.2", pdst="1.2.3.4")
+    arp_req = Ether(dst=ETHER_BROADCAST) / ARP(pdst="1.2.3.4")
     arp_repl = iface.sr1(arp_req, timeout=1)
     assert arp_repl is None, "responding to ARP requests for other IP addresses"
 
