@@ -682,10 +682,12 @@ def test_ipv4_udp_stun(iface):
             assert (
                 tid == b"\x00" * 12
             ), "expected tid 0x000000000000000000000000, got {:x}".format(tid)
-            assert data[:8] == bytes.fromhex("000100080001") + struct.pack(
-                ">H", sport
-            ), f"unexpected data {data!r}"
-            assert len(data) == 12, f"unexpected data {data!r}"
+            expected_data = b"\x00\x01\x00\x08\x00\x01" + struct.pack(
+                ">HBBBB", sport, 192, 0, 0, 2
+            )
+            assert (
+                data == expected_data
+            ), f"unexpected data {data!r} != {expected_data!r}"
 
 
 @test
@@ -760,10 +762,12 @@ def test_ipv4_udp_stun_change_port(iface):
             assert tid == bytes.fromhex("03a3b9464dd8eb75e19481474293845c"), (
                 "expected tid 0x03a3b9464dd8eb75e19481474293845c, got %r" % tid
             )
-            assert data[:8] == bytes.fromhex("000100080001") + struct.pack(
-                ">H", sport
-            ), f"unexpected data {data!r}"
-            assert len(data) == 12, f"unexpected data {data!r}"
+            expected_data = b"\x00\x01\x00\x08\x00\x01" + struct.pack(
+                ">HBBBB", sport, 192, 0, 0, 2
+            )
+            assert (
+                data == expected_data
+            ), f"unexpected data {data!r} != {expected_data!r}"
 
 
 @test
