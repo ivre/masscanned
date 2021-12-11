@@ -4,7 +4,7 @@
 
 **Masscanned** (name inspired, of course, by [masscan](https://github.com/robertdavidgraham/masscan))
 is a network responder. Its purpose is to provide generic answers to as many protocols as possible,
-and with as few asumptions as possible on the client's intentions.
+and with as few assumptions as possible on the client's intentions.
 
 > *Let them talk first.*
 
@@ -123,7 +123,7 @@ An additionnal requirement is that the next layer protocol is supported - see be
 
 #### IPv4
 
-The following L4 protocols are suppported for an `IPv4` packet:
+The following L4 protocols are supported for an `IPv4` packet:
 
 * `ICMPv4`
 * `UDP`
@@ -133,7 +133,7 @@ If the next layer protocol is not one of them, the packet is dropped.
 
 #### IPv6
 
-The following L4 protocols are suppported for an `IPv6` packet:
+The following L4 protocols are supported for an `IPv6` packet:
 
 * `ICMPv6`
 * `UDP`
@@ -159,7 +159,7 @@ code `0` and the same payload as the incoming packet, as specified by [RFC 792](
 
 * the `ICMP` type is `NeighborSol` (`135`) **and**:
     * no IP (v4 or v6) was speficied for `masscanned`
-    * **or** the target address of the Neighbor Solicitation is one of `masccanned`
+    * **or** the target address of the Neighbor Solicitation is one of `masscanned`
 
 *In that case, the answer is a `Neighbor Advertisement` (`136`) packet with `masscanned` `MAC` address*
 
