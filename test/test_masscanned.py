@@ -54,6 +54,7 @@ if HAS_IVRE:
     ZEEK_PASSIVERECON = bool(os.environ.get("USE_ZEEK"))
 else:
     ZEEK_PASSIVERECON = False
+P0F = bool(os.environ.get("USE_P0F"))
 conf.verb = 0
 
 # prepare configuration file for masscanned
@@ -98,6 +99,12 @@ if ZEEK_PASSIVERECON:
         stdout=open("test/res/zeek_passiverecon.stdout", "w"),
         stderr=open("test/res/zeek_passiverecon.stderr", "w"),
     )
+if P0F:
+    p0f = subprocess.Popen(
+        ["p0f", "-i", IFACE, "-o", "test/res/p0f_log.txt"],
+        stdout=open("test/res/p0f.stdout", "w"),
+        stderr=open("test/res/p0f.stderr", "w"),
+    )
 # run masscanned
 masscanned = subprocess.Popen(
     [
@@ -133,4 +140,7 @@ if TCPDUMP:
 if ZEEK_PASSIVERECON:
     zeek.kill()
     zeek.wait()
+if P0F:
+    p0f.kill()
+    p0f.wait()
 sys.exit(result)
