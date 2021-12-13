@@ -96,14 +96,14 @@ if ZEEK_PASSIVERECON:
             "redef tcp_content_deliver_all_orig = T; "
             f"redef PassiveRecon::HONEYPOTS += {{ {IPV4_ADDR}, [{IPV6_ADDR}] }}",
         ],
-        stdout=open("test/res/zeek_passiverecon.stdout", "w"),
-        stderr=open("test/res/zeek_passiverecon.stderr", "w"),
+        stdout=open(os.path.join(OUTDIR, "zeek_passiverecon.stdout"), "w"),
+        stderr=open(os.path.join(OUTDIR, "zeek_passiverecon.stderr"), "w"),
     )
 if P0F:
     p0f = subprocess.Popen(
-        ["p0f", "-i", IFACE, "-o", "test/res/p0f_log.txt"],
-        stdout=open("test/res/p0f.stdout", "w"),
-        stderr=open("test/res/p0f.stderr", "w"),
+        ["p0f", "-i", IFACE, "-o", os.path.join(OUTDIR, "p0f_log.txt")],
+        stdout=open(os.path.join(OUTDIR, "p0f.stdout"), "w"),
+        stderr=open(os.path.join(OUTDIR, "p0f.stderr"), "w"),
     )
 # run masscanned
 masscanned = subprocess.Popen(
@@ -120,8 +120,8 @@ masscanned = subprocess.Popen(
     # if args in CLI, they are passed to masscanned
     + sys.argv[1:],
     env=dict(os.environ, RUST_BACKTRACE="1"),
-    stdout=open("test/res/masscanned.stdout", "w"),
-    stderr=open("test/res/masscanned.stderr", "w"),
+    stdout=open(os.path.join(OUTDIR, "masscanned.stdout"), "w"),
+    stderr=open(os.path.join(OUTDIR, "masscanned.stderr"), "w"),
 )
 sleep(1)
 
