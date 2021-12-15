@@ -68,9 +68,11 @@ conf.iface = resolve_iface(IFACE)
 
 # set interface
 subprocess.check_call(["ip", "addr", "add", "dev", IFACE, "192.0.0.0/31"])
+subprocess.check_call(["ip", "addr", "add", "dev", IFACE, "2001:41d0::1234:5678/96"])
 subprocess.check_call(["ip", "link", "set", IFACE, "up"])
 subprocess.check_call(["ip", "route", "add", "1.2.3.4/32", "via", IPV4_ADDR])
 conf.route.resync()
+conf.route6.resync()
 
 # start capture
 if TCPDUMP:

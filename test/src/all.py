@@ -15,6 +15,7 @@
 # along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from socket import AF_INET6
 import struct
 
 from scapy.compat import raw
@@ -29,6 +30,7 @@ from scapy.layers.inet6 import (
     IPv6,
 )
 from scapy.layers.l2 import ARP, Ether
+from scapy.pton_ntop import inet_pton
 from scapy.packet import Raw
 from scapy.volatile import RandInt
 
@@ -815,9 +817,12 @@ def test_ipv6_udp_stun(iface):
             assert (
                 tid == b"\x00" * 12
             ), "expected tid 0x000000000000000000000000, got {:x}".format(tid)
-            assert data == bytes.fromhex("000100140002") + struct.pack(
-                ">H", sport
-            ) + bytes.fromhex("00000000" * 4), "unexpected data: {}".format(data)
+            expected_data = (
+                bytes.fromhex("000100140002")
+                + struct.pack(">H", sport)
+                + inet_pton(AF_INET6, "2001:41d0::1234:5678")
+            )
+            assert data == expected_data, "unexpected data: {}".format(data)
 
 
 @test
@@ -898,9 +903,14 @@ def test_ipv6_udp_stun_change_port(iface):
             assert tid == bytes.fromhex("03a3b9464dd8eb75e19481474293845c"), (
                 "expected tid 0x03a3b9464dd8eb75e19481474293845c, got %r" % tid
             )
-            assert data == bytes.fromhex("000100140002") + struct.pack(
-                ">H", sport
-            ) + bytes.fromhex("00000000" * 4)
+            expected_data = (
+                bytes.fromhex("000100140002")
+                + struct.pack(">H", sport)
+                + inet_pton(AF_INET6, "2001:41d0::1234:5678")
+            )
+            assert (
+                data == expected_data
+            ), f"unexpected data {data!r} != {expected_data!r}"
 
 
 @test
