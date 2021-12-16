@@ -60,12 +60,12 @@ fn ssh_parse(pstate: &mut ProtocolState, data: &[u8]) {
     /* RFC 4253:
      *
      * 4.2.  Protocol Version Exchange
-     * 
+     *
      *    When the connection has been established, both sides MUST send an
      *    identification string.  This identification string MUST be
-     * 
+     *
      *       SSH-protoversion-softwareversion SP comments CR LF
-     * 
+     *
      *    Since the protocol being defined in this set of documents is version
      *    2.0, the 'protoversion' MUST be "2.0".  The 'comments' string is
      *    OPTIONAL.  If the 'comments' string is included, a 'space' character
@@ -131,7 +131,7 @@ fn ssh_parse(pstate: &mut ProtocolState, data: &[u8]) {
             }
             SSH_STATE_SOFTWARE => {
                 if data[i] == b'\r' {
-                    /* look for LF in the next char */ 
+                    /* look for LF in the next char */
                     pstate.prev_state = pstate.state;
                     pstate.state = SSH_STATE_LF;
                 } else if data[i] == b' ' {
@@ -142,7 +142,7 @@ fn ssh_parse(pstate: &mut ProtocolState, data: &[u8]) {
             }
             SSH_STATE_COMMENT => {
                 if data[i] == b'\r' {
-                    /* look for LF in the next char */ 
+                    /* look for LF in the next char */
                     pstate.prev_state = pstate.state;
                     pstate.state = SSH_STATE_LF;
                 } else {
@@ -175,7 +175,10 @@ pub fn repl<'a>(
     }
     let repl_data = b"SSH-2.0-1\r\n".to_vec();
     debug!("sending SSH answer");
-    warn!("SSH server banner to {}", str::from_utf8(&pstate.ssh_software).unwrap().trim_end());
+    warn!(
+        "SSH server banner to {}",
+        str::from_utf8(&pstate.ssh_software).unwrap().trim_end()
+    );
     Some(repl_data)
 }
 
