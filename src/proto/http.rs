@@ -267,122 +267,127 @@ WWW-Authenticate: Basic realm=\"Access to admin page\"
     Some(repl_data)
 }
 
-#[test]
-fn test_http_verb() {
-    /* all at once */
-    for verb in HTTP_VERBS.iter() {
-        let mut pstate = ProtocolState::new();
-        assert!(pstate.state == HTTP_STATE_START);
-        assert!(pstate.smack_state == BASE_STATE);
-        assert!(pstate.smack_id == NO_MATCH);
-        http_parse(&mut pstate, &verb.as_bytes());
-        assert!(pstate.state == HTTP_STATE_SPACE);
-        assert!(pstate.smack_id == (HttpField::Verb as usize));
-        assert!(pstate.http_verb == verb.as_bytes());
-    }
-    /* byte by byte */
-    for verb in HTTP_VERBS.iter() {
-        let mut pstate = ProtocolState::new();
-        assert!(pstate.state == HTTP_STATE_START);
-        assert!(pstate.smack_state == BASE_STATE);
-        assert!(pstate.smack_id == NO_MATCH);
-        for i in 0..verb.len() {
-            if i > 0 {
-                assert!(pstate.state == HTTP_STATE_VERB);
-                assert!(pstate.smack_id == NO_MATCH);
-            }
-            http_parse(&mut pstate, &verb.as_bytes()[i..i + 1]);
-        }
-        assert!(pstate.state == HTTP_STATE_SPACE);
-        assert!(pstate.smack_id == (HttpField::Verb as usize));
-        assert!(pstate.http_verb == verb.as_bytes());
-    }
-    /* KO test: XXX */
-    let mut pstate = ProtocolState::new();
-    assert!(pstate.state == HTTP_STATE_START);
-    assert!(pstate.smack_state == BASE_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-    http_parse(&mut pstate, "XXX".as_bytes());
-    assert!(pstate.state == HTTP_STATE_FAIL);
-    assert!(pstate.smack_state == UNANCHORED_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-    /* KO test: XGET */
-    let mut pstate = ProtocolState::new();
-    assert!(pstate.state == HTTP_STATE_START);
-    assert!(pstate.smack_state == BASE_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-    http_parse(&mut pstate, "XGET".as_bytes());
-    assert!(pstate.state == HTTP_STATE_FAIL);
-    assert!(pstate.smack_state == UNANCHORED_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-    /* KO test: GEX */
-    let mut pstate = ProtocolState::new();
-    assert!(pstate.state == HTTP_STATE_START);
-    assert!(pstate.smack_state == BASE_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-    http_parse(&mut pstate, "GEX".as_bytes());
-    assert!(pstate.state == HTTP_STATE_FAIL);
-    assert!(pstate.smack_state == UNANCHORED_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-    /* KO test: GE T */
-    let mut pstate = ProtocolState::new();
-    assert!(pstate.state == HTTP_STATE_START);
-    assert!(pstate.smack_state == BASE_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-    http_parse(&mut pstate, "GE T".as_bytes());
-    assert!(pstate.state == HTTP_STATE_FAIL);
-    assert!(pstate.smack_state == UNANCHORED_STATE);
-    assert!(pstate.smack_id == NO_MATCH);
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_http_request_line() {
-    let mut pstate = ProtocolState::new();
-    let data = "GET /index.php HTTP/1.1\r\n".as_bytes();
-    for i in 0..data.len() {
-        http_parse(&mut pstate, &data[i..i + 1]);
-        if i < 2 {
-            assert!(pstate.state == HTTP_STATE_VERB);
-        } else if i == 2 {
+    #[test]
+    fn test_http_verb() {
+        /* all at once */
+        for verb in HTTP_VERBS.iter() {
+            let mut pstate = ProtocolState::new();
+            assert!(pstate.state == HTTP_STATE_START);
+            assert!(pstate.smack_state == BASE_STATE);
+            assert!(pstate.smack_id == NO_MATCH);
+            http_parse(&mut pstate, &verb.as_bytes());
             assert!(pstate.state == HTTP_STATE_SPACE);
-        } else if 3 <= i && i <= 13 {
-            assert!(pstate.state == HTTP_STATE_URI);
-        } else if 14 <= i && i <= 19 {
-            assert!(pstate.state == HTTP_STATE_H + (i - 14));
-        } else if i == 20 {
-            assert!(pstate.state == HTTP_STATE_VERSION_MAJ);
-        } else if 21 <= i && i <= 23 {
-            assert!(pstate.state == HTTP_STATE_VERSION_MIN);
-        } else if i == 24 {
-            assert!(pstate.state == HTTP_STATE_FIELD_START);
+            assert!(pstate.smack_id == (HttpField::Verb as usize));
+            assert!(pstate.http_verb == verb.as_bytes());
+        }
+        /* byte by byte */
+        for verb in HTTP_VERBS.iter() {
+            let mut pstate = ProtocolState::new();
+            assert!(pstate.state == HTTP_STATE_START);
+            assert!(pstate.smack_state == BASE_STATE);
+            assert!(pstate.smack_id == NO_MATCH);
+            for i in 0..verb.len() {
+                if i > 0 {
+                    assert!(pstate.state == HTTP_STATE_VERB);
+                    assert!(pstate.smack_id == NO_MATCH);
+                }
+                http_parse(&mut pstate, &verb.as_bytes()[i..i + 1]);
+            }
+            assert!(pstate.state == HTTP_STATE_SPACE);
+            assert!(pstate.smack_id == (HttpField::Verb as usize));
+            assert!(pstate.http_verb == verb.as_bytes());
+        }
+        /* KO test: XXX */
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == HTTP_STATE_START);
+        assert!(pstate.smack_state == BASE_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+        http_parse(&mut pstate, "XXX".as_bytes());
+        assert!(pstate.state == HTTP_STATE_FAIL);
+        assert!(pstate.smack_state == UNANCHORED_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+        /* KO test: XGET */
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == HTTP_STATE_START);
+        assert!(pstate.smack_state == BASE_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+        http_parse(&mut pstate, "XGET".as_bytes());
+        assert!(pstate.state == HTTP_STATE_FAIL);
+        assert!(pstate.smack_state == UNANCHORED_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+        /* KO test: GEX */
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == HTTP_STATE_START);
+        assert!(pstate.smack_state == BASE_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+        http_parse(&mut pstate, "GEX".as_bytes());
+        assert!(pstate.state == HTTP_STATE_FAIL);
+        assert!(pstate.smack_state == UNANCHORED_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+        /* KO test: GE T */
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == HTTP_STATE_START);
+        assert!(pstate.smack_state == BASE_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+        http_parse(&mut pstate, "GE T".as_bytes());
+        assert!(pstate.state == HTTP_STATE_FAIL);
+        assert!(pstate.smack_state == UNANCHORED_STATE);
+        assert!(pstate.smack_id == NO_MATCH);
+    }
+
+    #[test]
+    fn test_http_request_line() {
+        let mut pstate = ProtocolState::new();
+        let data = "GET /index.php HTTP/1.1\r\n".as_bytes();
+        for i in 0..data.len() {
+            http_parse(&mut pstate, &data[i..i + 1]);
+            if i < 2 {
+                assert!(pstate.state == HTTP_STATE_VERB);
+            } else if i == 2 {
+                assert!(pstate.state == HTTP_STATE_SPACE);
+            } else if 3 <= i && i <= 13 {
+                assert!(pstate.state == HTTP_STATE_URI);
+            } else if 14 <= i && i <= 19 {
+                assert!(pstate.state == HTTP_STATE_H + (i - 14));
+            } else if i == 20 {
+                assert!(pstate.state == HTTP_STATE_VERSION_MAJ);
+            } else if 21 <= i && i <= 23 {
+                assert!(pstate.state == HTTP_STATE_VERSION_MIN);
+            } else if i == 24 {
+                assert!(pstate.state == HTTP_STATE_FIELD_START);
+            }
         }
     }
-}
 
-#[test]
-fn test_http_request_field() {
-    let mut pstate = ProtocolState::new();
-    let req = "POST /index.php HTTP/2.0\r\n".as_bytes();
-    http_parse(&mut pstate, req);
-    assert!(pstate.state == HTTP_STATE_FIELD_START);
-    let field = b"Content-Length";
-    http_parse(&mut pstate, field);
-    assert!(pstate.state == HTTP_STATE_FIELD_NAME);
-    let dot = b": ";
-    http_parse(&mut pstate, dot);
-    assert!(pstate.state == HTTP_STATE_FIELD_VALUE);
-    let value = b": 0\r\n";
-    http_parse(&mut pstate, value);
-    assert!(pstate.state == HTTP_STATE_FIELD_START);
-}
+    #[test]
+    fn test_http_request_field() {
+        let mut pstate = ProtocolState::new();
+        let req = "POST /index.php HTTP/2.0\r\n".as_bytes();
+        http_parse(&mut pstate, req);
+        assert!(pstate.state == HTTP_STATE_FIELD_START);
+        let field = b"Content-Length";
+        http_parse(&mut pstate, field);
+        assert!(pstate.state == HTTP_STATE_FIELD_NAME);
+        let dot = b": ";
+        http_parse(&mut pstate, dot);
+        assert!(pstate.state == HTTP_STATE_FIELD_VALUE);
+        let value = b": 0\r\n";
+        http_parse(&mut pstate, value);
+        assert!(pstate.state == HTTP_STATE_FIELD_START);
+    }
 
-#[test]
-fn test_http_request_no_field() {
-    let mut pstate = ProtocolState::new();
-    let req = "POST /index.php HTTP/2.0\r\n".as_bytes();
-    http_parse(&mut pstate, req);
-    assert!(pstate.state == HTTP_STATE_FIELD_START);
-    let crlf = "\r\n".as_bytes();
-    http_parse(&mut pstate, crlf);
-    assert!(pstate.state == HTTP_STATE_CONTENT);
+    #[test]
+    fn test_http_request_no_field() {
+        let mut pstate = ProtocolState::new();
+        let req = "POST /index.php HTTP/2.0\r\n".as_bytes();
+        http_parse(&mut pstate, req);
+        assert!(pstate.state == HTTP_STATE_FIELD_START);
+        let crlf = "\r\n".as_bytes();
+        http_parse(&mut pstate, crlf);
+        assert!(pstate.state == HTTP_STATE_CONTENT);
+    }
 }
