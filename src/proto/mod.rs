@@ -118,16 +118,15 @@ pub fn repl<'a>(
         }
     }
     /* proto over else (e.g., UDP) */
-    if id == PROTO_HTTP {
-        return http::repl(data, masscanned, client_info);
-    } else if id == PROTO_STUN {
-        return stun::repl(data, masscanned, &mut client_info);
-    } else if id == PROTO_SSH {
-        return ssh::repl(data, masscanned, &mut client_info);
-    } else {
-        debug!("id: {}", id);
+    match id {
+        PROTO_HTTP => http::repl(data, masscanned, client_info),
+        PROTO_STUN => stun::repl(data, masscanned, &mut client_info),
+        PROTO_SSH => ssh::repl(data, masscanned, &mut client_info),
+        _ => {
+            debug!("id: {}", id);
+            None
+        }
     }
-    None
 }
 
 #[cfg(test)]
