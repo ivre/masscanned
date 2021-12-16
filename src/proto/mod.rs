@@ -33,9 +33,13 @@ use stun::{STUN_PATTERN_CHANGE_REQUEST, STUN_PATTERN_EMPTY, STUN_PATTERN_MAGIC};
 mod ssh;
 use ssh::SSH_PATTERN_CLIENT_PROTOCOL;
 
+mod ghost;
+use ghost::GHOST_PATTERN_SIGNATURE;
+
 const PROTO_HTTP: usize = 1;
 const PROTO_STUN: usize = 2;
 const PROTO_SSH: usize = 3;
+const PROTO_GHOST: usize = 4;
 
 struct TCPControlBlock {
     proto_state: usize,
@@ -74,6 +78,11 @@ fn proto_init() -> Smack {
     smack.add_pattern(
         SSH_PATTERN_CLIENT_PROTOCOL,
         PROTO_SSH,
+        SmackFlags::ANCHOR_BEGIN,
+    );
+    smack.add_pattern(
+        GHOST_PATTERN_SIGNATURE,
+        PROTO_GHOST,
         SmackFlags::ANCHOR_BEGIN,
     );
     smack.compile();
@@ -122,6 +131,7 @@ pub fn repl<'a>(
         PROTO_HTTP => http::repl(data, masscanned, client_info),
         PROTO_STUN => stun::repl(data, masscanned, &mut client_info),
         PROTO_SSH => ssh::repl(data, masscanned, &mut client_info),
+        PROTO_GHOST => ghost::repl(data, masscanned, &mut client_info),
         _ => {
             debug!("id: {}", id);
             None
@@ -233,6 +243,36 @@ mod tests {
             } else {
                 panic!("expected an answer, got nothing");
             };
+        }
+    }
+
+    #[test]
+    fn test_proto_dispatch_ghost() {
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
+        client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
+        client_info.port.src = Some(65000);
+        let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+        };
+        /***** TEST GHOST *****/
+        let payloads = [
+            b"Gh0st\xad\x00\x00\x00\xe0\x00\x00\x00x\x9cKS``\x98\xc3\xc0\xc0\xc0\x06\xc4\x8c@\xbcQ\x96\x81\x81\tH\x07\xa7\x16\x95e&\xa7*\x04$&g+\x182\x94\xf6\xb000\xac\xa8rc\x00\x01\x11\xa0\x82\x1f\\`&\x83\xc7K7\x86\x19\xe5n\x0c9\x95n\x0c;\x84\x0f3\xac\xe8sch\xa8^\xcf4'J\x97\xa9\x82\xe30\xc3\x91h]&\x90\xf8\xce\x97S\xcbA4L?2=\xe1\xc4\x92\x86\x0b@\xf5`\x0cT\x1f\xae\xaf]\nr\x0b\x03#\xa3\xdc\x02~\x06\x86\x03+\x18m\xc2=\xfdtC,C\xfdL<<==\\\x9d\x19\x88\x00\xe5 \x02\x00T\xf5+\\"
+        ];
+        for payload in payloads.iter() {
+            let _ghost_resp =
+                if let Some(r) = repl(&payload.to_vec(), &masscanned, &mut client_info) {
+                    r
+                } else {
+                    panic!("expected an answer, got nothing");
+                };
         }
     }
 }

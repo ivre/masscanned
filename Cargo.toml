@@ -37,6 +37,7 @@ lazy_static = "1.4.0"
 siphasher = "0.3"
 chrono = "0.4.19"
 byteorder = "1.4.3"
+flate2 = "1.0"
 
 [[bin]]
 name = "masscanned"
