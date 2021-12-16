@@ -31,6 +31,12 @@ jobs:
       with:
         toolchain: stable
 
+    - name: Run cargo fmt
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: -- --check
+
     - name: Run cargo build
       uses: actions-rs/cargo@v1
       with:
