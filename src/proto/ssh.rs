@@ -31,6 +31,9 @@ pub fn repl<'a>(
     debug!("receiving SSH data");
     let repl_data = b"SSH-2.0-1\r\n".to_vec();
     debug!("sending SSH answer");
-    warn!("SSH server banner to {}", str::from_utf8(&data).unwrap().trim_end());
+    warn!(
+        "SSH server banner to {}",
+        str::from_utf8(&data).unwrap().trim_end()
+    );
     return Some(repl_data);
 }
