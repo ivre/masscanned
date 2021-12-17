@@ -19,7 +19,7 @@ For example, when it receives network packets:
 * **masscanned** answers to `TCP SYN` (any port) with `TCP SYN/ACK` on any port,
 * **masscanned** answers to `HTTP` requests (any verb) over `TCP/UDP` (any port) with a `HTTP 401` web page.
 
-![demo](doc/demo.gif)
+![demo](doc/img/demo.gif)
 
 **Masscanned** currently supports most common protocols at layers 2-3-4, and a few application
 protocols:
