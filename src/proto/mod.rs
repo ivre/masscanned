@@ -36,10 +36,14 @@ use ssh::SSH_PATTERN_CLIENT_PROTOCOL;
 mod ghost;
 use ghost::GHOST_PATTERN_SIGNATURE;
 
+mod rpc;
+use rpc::RPC_CALL;
+
 const PROTO_HTTP: usize = 1;
 const PROTO_STUN: usize = 2;
 const PROTO_SSH: usize = 3;
 const PROTO_GHOST: usize = 4;
+const PROTO_RPC: usize = 5;
 
 struct TCPControlBlock {
     proto_state: usize,
@@ -84,6 +88,11 @@ fn proto_init() -> Smack {
         GHOST_PATTERN_SIGNATURE,
         PROTO_GHOST,
         SmackFlags::ANCHOR_BEGIN,
+    );
+    smack.add_pattern(
+        RPC_CALL,
+        PROTO_RPC,
+        SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
     );
     smack.compile();
     smack
@@ -132,6 +141,7 @@ pub fn repl<'a>(
         PROTO_STUN => stun::repl(data, masscanned, &mut client_info),
         PROTO_SSH => ssh::repl(data, masscanned, &mut client_info),
         PROTO_GHOST => ghost::repl(data, masscanned, &mut client_info),
+        PROTO_RPC => rpc::repl(data, masscanned, &mut client_info),
         _ => {
             debug!("id: {}", id);
             None
