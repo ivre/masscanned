@@ -5,13 +5,13 @@ Dedicated addresses
 ~~~~~~~~~~~~~~~~~~~
 
 Masscanned is designed to handle its own IP addresses, which means
-that the host should not have those addresses configures, and
-Masscanned will answer ARP requests (or ICMPv6 ND neighbor
-solicitations).
+that the host should not have those addresses configured, and
+Masscanned will answer ``ARP`` requests (or ``ICMPv6`` ``ND`` neighbor
+sollicitations).
 
-The host may have one or more (IPv4 and/or IPv6) addresses configured
-on an interface also used by Masscanned, but those addresses must be
-different from those configured to be used by Masscanned.
+The host may have one or more (``IPv4`` and/or ``IPv6``) addresses configured
+on an interface also used by masscanned, but those addresses must be
+different from those configured to be used by masscanned.
 
 In that situation (dedicated addresses), just run:
 
@@ -19,21 +19,23 @@ In that situation (dedicated addresses), just run:
 
    # masscanned -i <iface> -f <ip_addr_file>
 
+where ``<ip_addr_file>`` is the path of a text file with one address (``IPv4``
+or ``IPv6``) per line.
 
 Addresses shared with the host
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sometimes it is desirable to have an IP address used by the host
-(e.g., for administration tasks) and by Masscanned (to handle all
+(*e.g.*, for administration tasks) and by masscanned (to handle all
 other incoming packets).
 
-Since this is not implemented in Masscanned, a tiny hack is needed: we
-are going to run Masscanned on a ``veth`` interface.
+Since this is not implemented in masscanned, a tiny hack is needed: we
+are going to run it on a ``veth`` interface.
 
 For this example, we suppose:
 
 - The interface is ``eth0``, the address is ``192.168.0.10``.
-- We want Masscanned to handle all the traffic except for incoming SSH
+- We want masscanned to handle all the traffic except for incoming SSH
   connections on TCP/22 port.
 
 We create a ``veth`` pair of interfaces, on which we are going to use
@@ -61,7 +63,7 @@ Masscanned can now be used, but only from the host where it runs:
    rtt min/avg/max/mdev = 0.442/0.442/0.442/0.000 ms
 
 Now, we are going to use Netfilter / ``iptables`` to redirect incoming
-traffic to Masscanned:
+traffic to masscanned:
 
 ::
 
@@ -82,7 +84,7 @@ And, from another host on the 192.168.0.0/24 network:
    rtt min/avg/max/mdev = 0.366/0.366/0.366/0.000 ms
 
 
-The Masscanned output:
+The masscanned output:
 
 ::
 
