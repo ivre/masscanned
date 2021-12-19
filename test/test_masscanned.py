@@ -49,6 +49,7 @@ def setup_logs():
 
 
 def cleanup_net(iface):
+    global ipfile
     subprocess.check_call(["ip", "link", "delete", iface])
     subprocess.check_call(
         [
@@ -66,6 +67,10 @@ def cleanup_net(iface):
         ]
     )
     subprocess.check_call(["iptables", "-D", "INPUT", "-i", iface, "-j", "DROP"])
+    try:
+        os.unlink(ipfile.name)
+    except NameError:
+        pass
 
 
 def setup_net(iface):

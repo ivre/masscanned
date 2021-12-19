@@ -14,11 +14,16 @@
 # You should have received a copy of the GNU General Public License
 # along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import logging
+import os
 from socket import AF_INET6
+from subprocess import check_call
 import struct
+from tempfile import NamedTemporaryFile
 import zlib
 
+from ivre.db import DBNmap
 from scapy.compat import raw
 from scapy.data import ETHER_BROADCAST
 from scapy.layers.inet import ICMP, IP, TCP, UDP
@@ -1164,6 +1169,44 @@ def test_ipv4_tcp_ghost():
         assert len(zlib.decompress(data[13:])) == uncompressed_len, (
             "invalid Ghost payload: %r" % data
         )
+
+
+@test
+def test_rpc_nmap():
+    with NamedTemporaryFile(delete=False) as xml_result:
+        check_call(
+            [
+                "nmap",
+                "-n",
+                "-vv",
+                "-oX",
+                "-",
+                IPV4_ADDR,
+                "-sSV",
+                "-p",
+                "111",
+                "--script",
+                "rpcinfo,rpc-grind",
+            ],
+            stdout=xml_result,
+        )
+    with NamedTemporaryFile(delete=False, mode="w") as json_result:
+        DBNmap(output=json_result).store_scan(xml_result.name)
+    os.unlink(xml_result.name)
+    with open(json_result.name) as fdesc:
+        results = [json.loads(line) for line in fdesc]
+    os.unlink(json_result.name)
+    assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+    result = results[0]
+    assert len(result["ports"]) == 1, f"Expected 1 port, got {len(result['ports'])}"
+    port = result["ports"][0]
+    assert port["port"] == 111 and port["protocol"] == "tcp"
+    assert port["service_name"] in {"rpcbind", "nfs"}
+    assert port["service_extrainfo"] in {"RPC #100000", "RPC #100003"}
+    assert len(port["scripts"]) == 1, f"Expected 1 script, got {len(port['scripts'])}"
+    script = port["scripts"][0]
+    assert script["id"] == "rpcinfo", "Expected rpcinfo script, not found"
+    assert len(script["rpcinfo"]) == 1
 
 
 def test_all():
