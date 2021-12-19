@@ -87,7 +87,7 @@ jobs:
       run: black -t py36 --check test/test_masscanned.py test/src/
 
     - name: Run flake8
-      run: flake8 --ignore=E266,E501,W503 test/test_masscanned.py test/src/all.py
+      run: flake8 --ignore=E266,E501,W503 test/test_masscanned.py test/src/
 
     - name: Run tests
       run: sudo python test/test_masscanned.py
