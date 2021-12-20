@@ -1209,6 +1209,25 @@ def test_rpc_nmap():
     assert len(script["rpcinfo"]) == 1
 
 
+@test
+def test_rpcinfo():
+    with NamedTemporaryFile(delete=False) as rpcout:
+        check_call(["rpcinfo", "-p", IPV4_ADDR], stdout=rpcout)
+    with open(rpcout.name) as fdesc:
+        found = []
+        for line in fdesc:
+            line = line.split()
+            if line[0] == "program":
+                # header
+                continue
+            assert line[0] == "100000", f"Expected program 100000, got {line[0]}"
+            found.append(int(line[1]))
+        assert len(found) == 3, f"Expected three versions, got {found}"
+        for i in range(2, 5):
+            assert i in found, f"Missing version {i} in {found}"
+    os.unlink(rpcout.name)
+
+
 def test_all():
     global TESTS
     # execute tests
