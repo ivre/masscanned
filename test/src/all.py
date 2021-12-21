@@ -33,6 +33,7 @@ from scapy.layers.inet6 import (
 from scapy.layers.l2 import ARP, Ether
 from scapy.pton_ntop import inet_pton
 from scapy.packet import Raw
+from scapy.sendrecv import srp1
 from scapy.volatile import RandInt
 
 from .conf import IPV4_ADDR, IPV6_ADDR, MAC_ADDR
@@ -60,9 +61,9 @@ def test(f):
     KO = "\033[1m\033[1;%dmKO\033[0m" % 31
     fname = f.__name__.ljust(50, ".")
 
-    def w(iface):
+    def w():
         try:
-            f(iface)
+            f()
             LOG.info("{}{}".format(fname, OK))
         except AssertionError as e:
             LOG.error("{}{}: {}".format(fname, KO, e))
@@ -107,10 +108,10 @@ def check_ipv6_checksum(pkt):
 
 
 @test
-def test_arp_req(iface):
+def test_arp_req():
     ##### ARP #####
     arp_req = Ether(dst=ETHER_BROADCAST) / ARP(pdst=IPV4_ADDR)
-    arp_repl = iface.sr1(arp_req, timeout=1)
+    arp_repl = srp1(arp_req, timeout=1)
     assert arp_repl is not None, "expecting answer, got nothing"
     assert ARP in arp_repl, "no ARP layer found"
     arp_repl = arp_repl[ARP]
@@ -129,18 +130,18 @@ def test_arp_req(iface):
 
 
 @test
-def test_arp_req_other_ip(iface):
+def test_arp_req_other_ip():
     ##### ARP #####
     arp_req = Ether(dst=ETHER_BROADCAST) / ARP(pdst="1.2.3.4")
-    arp_repl = iface.sr1(arp_req, timeout=1)
+    arp_repl = srp1(arp_req, timeout=1)
     assert arp_repl is None, "responding to ARP requests for other IP addresses"
 
 
 @test
-def test_ipv4_req(iface):
+def test_ipv4_req():
     ##### IP #####
     ip_req = Ether(dst=MAC_ADDR) / IP(dst=IPV4_ADDR, id=0x1337) / ICMP(type=8, code=0)
-    ip_repl = iface.sr1(ip_req, timeout=1)
+    ip_repl = srp1(ip_req, timeout=1)
     assert ip_repl is not None, "expecting answer, got nothing"
     check_ip_checksum(ip_repl)
     assert IP in ip_repl, "no IP layer in response"
@@ -149,23 +150,23 @@ def test_ipv4_req(iface):
 
 
 @test
-def test_eth_req_other_mac(iface):
+def test_eth_req_other_mac():
     #### ETH ####
     ip_req = Ether(dst="00:00:00:11:11:11") / IP(dst=IPV4_ADDR) / ICMP(type=8, code=0)
-    ip_repl = iface.sr1(ip_req, timeout=1)
+    ip_repl = srp1(ip_req, timeout=1)
     assert ip_repl is None, "responding to other MAC addresses"
 
 
 @test
-def test_ipv4_req_other_ip(iface):
+def test_ipv4_req_other_ip():
     ##### IP #####
     ip_req = Ether(dst=MAC_ADDR) / IP(dst="1.2.3.4") / ICMP(type=8, code=0)
-    ip_repl = iface.sr1(ip_req, timeout=1)
+    ip_repl = srp1(ip_req, timeout=1)
     assert ip_repl is None, "responding to other IP addresses"
 
 
 @test
-def test_icmpv4_echo_req(iface):
+def test_icmpv4_echo_req():
     ##### ICMPv4 #####
     icmp_req = (
         Ether(dst=MAC_ADDR)
@@ -173,7 +174,7 @@ def test_icmpv4_echo_req(iface):
         / ICMP(type=8, code=0)
         / Raw("idrinkwaytoomuchcoffee")
     )
-    icmp_repl = iface.sr1(icmp_req, timeout=1)
+    icmp_repl = srp1(icmp_req, timeout=1)
     assert icmp_repl is not None, "expecting answer, got nothing"
     check_ip_checksum(icmp_repl)
     assert ICMP in icmp_repl
@@ -187,7 +188,7 @@ def test_icmpv4_echo_req(iface):
 
 
 @test
-def test_icmpv6_neighbor_solicitation(iface):
+def test_icmpv6_neighbor_solicitation():
     ##### IPv6 Neighbor Solicitation #####
     for mac in [
         "ff:ff:ff:ff:ff:ff",
@@ -196,7 +197,7 @@ def test_icmpv6_neighbor_solicitation(iface):
         multicast(IPV6_ADDR),
     ]:
         nd_ns = Ether(dst=mac) / IPv6() / ICMPv6ND_NS(tgt=IPV6_ADDR)
-        nd_na = iface.sr1(nd_ns, timeout=1)
+        nd_na = srp1(nd_ns, timeout=1)
         assert nd_na is not None, "expecting answer, got nothing"
         assert ICMPv6ND_NA in nd_na
         nd_na = nd_na[ICMPv6ND_NA]
@@ -211,31 +212,31 @@ def test_icmpv6_neighbor_solicitation(iface):
         assert nd_na.getlayer(ICMPv6NDOptDstLLAddr).lladdr == MAC_ADDR
     for mac in ["00:00:00:00:00:00", "33:33:33:00:00:01"]:
         nd_ns = Ether(dst="ff:ff:ff:ff:ff:ff") / IPv6() / ICMPv6ND_NS(tgt=IPV6_ADDR)
-        nd_na = iface.sr1(nd_ns, timeout=1)
+        nd_na = srp1(nd_ns, timeout=1)
         assert nd_na is not None, "expecting no answer, got one"
 
 
 @test
-def test_icmpv6_neighbor_solicitation_other_ip(iface):
+def test_icmpv6_neighbor_solicitation_other_ip():
     ##### IPv6 Neighbor Solicitation #####
     nd_ns = (
         Ether(dst="ff:ff:ff:ff:ff:ff")
         / IPv6()
         / ICMPv6ND_NS(tgt="2020:4141:3030:2020::bdbd")
     )
-    nd_na = iface.sr1(nd_ns, timeout=1)
+    nd_na = srp1(nd_ns, timeout=1)
     assert nd_na is None, "responding to ND_NS for other IP addresses"
 
 
 @test
-def test_icmpv6_echo_req(iface):
+def test_icmpv6_echo_req():
     ##### IPv6 Ping #####
     echo_req = (
         Ether(dst=MAC_ADDR)
         / IPv6(dst=IPV6_ADDR)
         / ICMPv6EchoRequest(data="waytoomanynapkins")
     )
-    echo_repl = iface.sr1(echo_req, timeout=1)
+    echo_repl = srp1(echo_req, timeout=1)
     assert echo_repl is not None, "expecting answer, got nothing"
     assert ICMPv6EchoReply in echo_repl
     echo_repl = echo_repl[ICMPv6EchoReply]
@@ -245,7 +246,7 @@ def test_icmpv6_echo_req(iface):
 
 
 @test
-def test_tcp_syn(iface):
+def test_tcp_syn():
     ##### SYN-ACK #####
     # test a list of ports, randomly generated once
     ports_to_test = [
@@ -357,7 +358,7 @@ def test_tcp_syn(iface):
             / IP(dst=IPV4_ADDR)
             / TCP(flags="S", dport=p, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ip_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -370,7 +371,7 @@ def test_tcp_syn(iface):
 
 
 @test
-def test_ipv4_tcp_psh_ack(iface):
+def test_ipv4_tcp_psh_ack():
     ##### PSH-ACK #####
     sport = 26695
     port = 445
@@ -382,7 +383,7 @@ def test_ipv4_tcp_psh_ack(iface):
         / TCP(flags="PA", sport=sport, dport=port, seq=seq_init)
         / Raw("payload")
     )
-    syn_ack = iface.sr1(psh_ack, timeout=1)
+    syn_ack = srp1(psh_ack, timeout=1)
     assert syn_ack is None, "no answer expected, got one"
     # test the anti-injection mechanism
     seq_init = int(RandInt())
@@ -391,7 +392,7 @@ def test_ipv4_tcp_psh_ack(iface):
         / IP(dst=IPV4_ADDR)
         / TCP(flags="S", sport=sport, dport=port, seq=seq_init)
     )
-    syn_ack = iface.sr1(syn, timeout=1)
+    syn_ack = srp1(syn, timeout=1)
     assert syn_ack is not None, "expecting answer, got nothing"
     check_ip_checksum(syn_ack)
     assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -408,7 +409,7 @@ def test_ipv4_tcp_psh_ack(iface):
         / IP(dst=IPV4_ADDR)
         / TCP(flags="PA", sport=sport, dport=port, ack=0, seq=seq_init + 1)
     )
-    ack = iface.sr1(psh_ack, timeout=1)
+    ack = srp1(psh_ack, timeout=1)
     assert ack is None, "no answer expected, got one"
     # should get an answer this time
     psh_ack = (
@@ -418,7 +419,7 @@ def test_ipv4_tcp_psh_ack(iface):
             flags="PA", sport=sport, dport=port, ack=syn_ack.seq + 1, seq=seq_init + 1
         )
     )
-    ack = iface.sr1(psh_ack, timeout=1)
+    ack = srp1(psh_ack, timeout=1)
     assert ack is not None, "expecting answer, got nothing"
     check_ip_checksum(ack)
     assert TCP in ack, "expecting TCP, got %r" % ack.summary()
@@ -427,7 +428,7 @@ def test_ipv4_tcp_psh_ack(iface):
 
 
 @test
-def test_ipv6_tcp_psh_ack(iface):
+def test_ipv6_tcp_psh_ack():
     ##### PSH-ACK #####
     sport = 26695
     port = 445
@@ -439,7 +440,7 @@ def test_ipv6_tcp_psh_ack(iface):
         / TCP(flags="PA", sport=sport, dport=port, seq=seq_init)
         / Raw("payload")
     )
-    syn_ack = iface.sr1(psh_ack, timeout=1)
+    syn_ack = srp1(psh_ack, timeout=1)
     assert syn_ack is None, "no answer expected, got one"
     # test the anti-injection mechanism
     syn = (
@@ -447,7 +448,7 @@ def test_ipv6_tcp_psh_ack(iface):
         / IPv6(dst=IPV6_ADDR)
         / TCP(flags="S", sport=sport, dport=port, seq=seq_init)
     )
-    syn_ack = iface.sr1(syn, timeout=1)
+    syn_ack = srp1(syn, timeout=1)
     assert syn_ack is not None, "expecting answer, got nothing"
     check_ipv6_checksum(syn_ack)
     assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -464,7 +465,7 @@ def test_ipv6_tcp_psh_ack(iface):
         / IPv6(dst=IPV6_ADDR)
         / TCP(flags="PA", sport=sport, dport=port, ack=0, seq=seq_init + 1)
     )
-    ack = iface.sr1(psh_ack, timeout=1)
+    ack = srp1(psh_ack, timeout=1)
     assert ack is None, "no answer expected, got one"
     # should get an answer this time
     psh_ack = (
@@ -474,7 +475,7 @@ def test_ipv6_tcp_psh_ack(iface):
             flags="PA", sport=sport, dport=port, ack=syn_ack.seq + 1, seq=seq_init + 1
         )
     )
-    ack = iface.sr1(psh_ack, timeout=1)
+    ack = srp1(psh_ack, timeout=1)
     assert ack is not None, "expecting answer, got nothing"
     check_ipv6_checksum(ack)
     assert TCP in ack, "expecting TCP, got %r" % ack.summary()
@@ -483,7 +484,7 @@ def test_ipv6_tcp_psh_ack(iface):
 
 
 @test
-def test_ipv4_tcp_http(iface):
+def test_ipv4_tcp_http():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -493,7 +494,7 @@ def test_ipv4_tcp_http(iface):
             / IP(dst=IPV4_ADDR)
             / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ip_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -510,7 +511,7 @@ def test_ipv4_tcp_http(iface):
                 ack=syn_ack.seq + 1,
             )
         )
-        _ = iface.sr1(ack, timeout=1)
+        _ = srp1(ack, timeout=1)
         req = (
             Ether(dst=MAC_ADDR)
             / IP(dst=IPV4_ADDR)
@@ -523,7 +524,7 @@ def test_ipv4_tcp_http(iface):
             )
             / Raw("GET / HTTP/1.1\r\n\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ip_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
@@ -532,7 +533,7 @@ def test_ipv4_tcp_http(iface):
 
 
 @test
-def test_ipv6_tcp_http(iface):
+def test_ipv6_tcp_http():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -542,7 +543,7 @@ def test_ipv6_tcp_http(iface):
             / IPv6(dst=IPV6_ADDR)
             / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ipv6_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -559,7 +560,7 @@ def test_ipv6_tcp_http(iface):
                 ack=syn_ack.seq + 1,
             )
         )
-        _ = iface.sr1(ack, timeout=1)
+        _ = srp1(ack, timeout=1)
         req = (
             Ether(dst=MAC_ADDR)
             / IPv6(dst=IPV6_ADDR)
@@ -572,7 +573,7 @@ def test_ipv6_tcp_http(iface):
             )
             / Raw("GET / HTTP/1.1\r\n\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ipv6_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
@@ -581,7 +582,7 @@ def test_ipv6_tcp_http(iface):
 
 
 @test
-def test_ipv4_udp_http(iface):
+def test_ipv4_udp_http():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -591,7 +592,7 @@ def test_ipv4_udp_http(iface):
             / UDP(sport=sport, dport=dport)
             / Raw("GET / HTTP/1.1\r\n\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ip_checksum(resp)
         assert UDP in resp
@@ -600,7 +601,7 @@ def test_ipv4_udp_http(iface):
 
 
 @test
-def test_ipv6_udp_http(iface):
+def test_ipv6_udp_http():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -610,7 +611,7 @@ def test_ipv6_udp_http(iface):
             / UDP(sport=sport, dport=dport)
             / Raw("GET / HTTP/1.1\r\n\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ipv6_checksum(resp)
         assert UDP in resp
@@ -619,7 +620,7 @@ def test_ipv6_udp_http(iface):
 
 
 @test
-def test_ipv4_tcp_http_ko(iface):
+def test_ipv4_tcp_http_ko():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -629,7 +630,7 @@ def test_ipv4_tcp_http_ko(iface):
             / IP(dst=IPV4_ADDR)
             / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ip_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -646,7 +647,7 @@ def test_ipv4_tcp_http_ko(iface):
                 ack=syn_ack.seq + 1,
             )
         )
-        _ = iface.sr1(ack, timeout=1)
+        _ = srp1(ack, timeout=1)
         req = (
             Ether(dst=MAC_ADDR)
             / IP(dst=IPV4_ADDR)
@@ -659,7 +660,7 @@ def test_ipv4_tcp_http_ko(iface):
             )
             / Raw(bytes.fromhex("4f5054494f4e53"))
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ip_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
@@ -668,7 +669,7 @@ def test_ipv4_tcp_http_ko(iface):
 
 
 @test
-def test_ipv4_udp_http_ko(iface):
+def test_ipv4_udp_http_ko():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -678,12 +679,12 @@ def test_ipv4_udp_http_ko(iface):
             / UDP(sport=sport, dport=dport)
             / Raw(bytes.fromhex("4f5054494f4e53"))
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is None, "expecting no answer, got one"
 
 
 @test
-def test_ipv6_tcp_http_ko(iface):
+def test_ipv6_tcp_http_ko():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -693,7 +694,7 @@ def test_ipv6_tcp_http_ko(iface):
             / IPv6(dst=IPV6_ADDR)
             / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ipv6_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -710,7 +711,7 @@ def test_ipv6_tcp_http_ko(iface):
                 ack=syn_ack.seq + 1,
             )
         )
-        _ = iface.sr1(ack, timeout=1)
+        _ = srp1(ack, timeout=1)
         req = (
             Ether(dst=MAC_ADDR)
             / IPv6(dst=IPV6_ADDR)
@@ -723,7 +724,7 @@ def test_ipv6_tcp_http_ko(iface):
             )
             / Raw(bytes.fromhex("4f5054494f4e53"))
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ipv6_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
@@ -732,7 +733,7 @@ def test_ipv6_tcp_http_ko(iface):
 
 
 @test
-def test_ipv6_udp_http_ko(iface):
+def test_ipv6_udp_http_ko():
     sport = 24592
     dports = [80, 443, 5000, 53228]
     for dport in dports:
@@ -742,12 +743,12 @@ def test_ipv6_udp_http_ko(iface):
             / UDP(sport=sport, dport=dport)
             / Raw(bytes.fromhex("4f5054494f4e53"))
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is None, "expecting no answer, got one"
 
 
 @test
-def test_ipv4_udp_stun(iface):
+def test_ipv4_udp_stun():
     sports = [12345, 55555, 80, 43273]
     dports = [80, 800, 8000, 3478]
     payload = bytes.fromhex("000100002112a442000000000000000000000000")
@@ -759,7 +760,7 @@ def test_ipv4_udp_stun(iface):
                 / UDP(sport=sport, dport=dport)
                 / Raw(payload)
             )
-            resp = iface.sr1(req, timeout=1)
+            resp = srp1(req, timeout=1)
             assert resp is not None, "expecting answer, got nothing"
             check_ip_checksum(resp)
             assert UDP in resp, "no UDP layer found"
@@ -787,7 +788,7 @@ def test_ipv4_udp_stun(iface):
 
 
 @test
-def test_ipv6_udp_stun(iface):
+def test_ipv6_udp_stun():
     sports = [12345, 55555, 80, 43273]
     dports = [80, 800, 8000, 3478]
     payload = bytes.fromhex("000100002112a442000000000000000000000000")
@@ -799,7 +800,7 @@ def test_ipv6_udp_stun(iface):
                 / UDP(sport=sport, dport=dport)
                 / Raw(payload)
             )
-            resp = iface.sr1(req, timeout=1)
+            resp = srp1(req, timeout=1)
             assert resp is not None, "expecting answer, got nothing"
             check_ipv6_checksum(resp)
             assert UDP in resp
@@ -827,7 +828,7 @@ def test_ipv6_udp_stun(iface):
 
 
 @test
-def test_ipv4_udp_stun_change_port(iface):
+def test_ipv4_udp_stun_change_port():
     sports = [12345, 55555, 80, 43273]
     dports = [80, 800, 8000, 3478, 65535]
     payload = bytes.fromhex("0001000803a3b9464dd8eb75e19481474293845c0003000400000002")
@@ -839,7 +840,7 @@ def test_ipv4_udp_stun_change_port(iface):
                 / UDP(sport=sport, dport=dport)
                 / Raw(payload)
             )
-            resp = iface.sr1(req, timeout=1)
+            resp = srp1(req, timeout=1)
             assert resp is not None, "expecting answer, got nothing"
             check_ip_checksum(resp)
             assert UDP in resp, "no UDP layer found"
@@ -870,7 +871,7 @@ def test_ipv4_udp_stun_change_port(iface):
 
 
 @test
-def test_ipv6_udp_stun_change_port(iface):
+def test_ipv6_udp_stun_change_port():
     sports = [12345, 55555, 80, 43273]
     dports = [80, 800, 8000, 3478, 65535]
     payload = bytes.fromhex("0001000803a3b9464dd8eb75e19481474293845c0003000400000002")
@@ -882,7 +883,7 @@ def test_ipv6_udp_stun_change_port(iface):
                 / UDP(sport=sport, dport=dport)
                 / Raw(payload)
             )
-            resp = iface.sr1(req, timeout=1)
+            resp = srp1(req, timeout=1)
             assert resp is not None, "expecting answer, got nothing"
             check_ipv6_checksum(resp)
             assert UDP in resp, "expecting UDP layer in answer, got nothing"
@@ -915,7 +916,7 @@ def test_ipv6_udp_stun_change_port(iface):
 
 
 @test
-def test_ipv4_tcp_ssh(iface):
+def test_ipv4_tcp_ssh():
     sport = 37183
     dports = [22, 80, 2222, 2022, 23874, 50000]
     for i, dport in enumerate(dports):
@@ -932,7 +933,7 @@ def test_ipv4_tcp_ssh(iface):
             / IP(dst=IPV4_ADDR)
             / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ip_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -949,7 +950,7 @@ def test_ipv4_tcp_ssh(iface):
                 ack=syn_ack.seq + 1,
             )
         )
-        _ = iface.sr1(ack, timeout=1)
+        _ = srp1(ack, timeout=1)
         req = (
             Ether(dst=MAC_ADDR)
             / IP(dst=IPV4_ADDR)
@@ -962,7 +963,7 @@ def test_ipv4_tcp_ssh(iface):
             )
             / Raw(banner + b"\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ip_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
@@ -979,7 +980,7 @@ def test_ipv4_tcp_ssh(iface):
 
 
 @test
-def test_ipv4_udp_ssh(iface):
+def test_ipv4_udp_ssh():
     sport = 37183
     dports = [22, 80, 2222, 2022, 23874, 50000]
     for i, dport in enumerate(dports):
@@ -996,7 +997,7 @@ def test_ipv4_udp_ssh(iface):
             / UDP(sport=sport, dport=dport)
             / Raw(banner + b"\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ip_checksum(resp)
         assert UDP in resp
@@ -1011,7 +1012,7 @@ def test_ipv4_udp_ssh(iface):
 
 
 @test
-def test_ipv6_tcp_ssh(iface):
+def test_ipv6_tcp_ssh():
     sport = 37183
     dports = [22, 80, 2222, 2022, 23874, 50000]
     for i, dport in enumerate(dports):
@@ -1028,7 +1029,7 @@ def test_ipv6_tcp_ssh(iface):
             / IPv6(dst=IPV6_ADDR)
             / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ipv6_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -1045,7 +1046,7 @@ def test_ipv6_tcp_ssh(iface):
                 ack=syn_ack.seq + 1,
             )
         )
-        _ = iface.sr1(ack, timeout=1)
+        _ = srp1(ack, timeout=1)
         req = (
             Ether(dst=MAC_ADDR)
             / IPv6(dst=IPV6_ADDR)
@@ -1058,7 +1059,7 @@ def test_ipv6_tcp_ssh(iface):
             )
             / Raw(banner + b"\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ipv6_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
@@ -1075,7 +1076,7 @@ def test_ipv6_tcp_ssh(iface):
 
 
 @test
-def test_ipv6_udp_ssh(iface):
+def test_ipv6_udp_ssh():
     sport = 37183
     dports = [22, 80, 2222, 2022, 23874, 50000]
     for i, dport in enumerate(dports):
@@ -1092,7 +1093,7 @@ def test_ipv6_udp_ssh(iface):
             / UDP(sport=sport, dport=dport)
             / Raw(banner + b"\r\n")
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ipv6_checksum(resp)
         assert UDP in resp
@@ -1107,7 +1108,7 @@ def test_ipv6_udp_ssh(iface):
 
 
 @test
-def test_ipv4_tcp_ghost(iface):
+def test_ipv4_tcp_ghost():
     sport = 37184
     dports = [22, 23874]
     for dport in dports:
@@ -1118,7 +1119,7 @@ def test_ipv4_tcp_ghost(iface):
             / IP(dst=IPV4_ADDR)
             / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
         )
-        syn_ack = iface.sr1(syn, timeout=1)
+        syn_ack = srp1(syn, timeout=1)
         assert syn_ack is not None, "expecting answer, got nothing"
         check_ip_checksum(syn_ack)
         assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
@@ -1135,7 +1136,7 @@ def test_ipv4_tcp_ghost(iface):
                 ack=syn_ack.seq + 1,
             )
         )
-        _ = iface.sr1(ack, timeout=1)
+        _ = srp1(ack, timeout=1)
         req = (
             Ether(dst=MAC_ADDR)
             / IP(dst=IPV4_ADDR)
@@ -1148,7 +1149,7 @@ def test_ipv4_tcp_ghost(iface):
             )
             / Raw(banner)
         )
-        resp = iface.sr1(req, timeout=1)
+        resp = srp1(req, timeout=1)
         assert resp is not None, "expecting answer, got nothing"
         check_ip_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
@@ -1165,9 +1166,9 @@ def test_ipv4_tcp_ghost(iface):
         )
 
 
-def test_all(iface):
+def test_all():
     global TESTS
     # execute tests
     for t in TESTS:
-        t(iface)
+        t()
     return len(ERRORS)
