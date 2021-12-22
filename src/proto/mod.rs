@@ -37,13 +37,14 @@ mod ghost;
 use ghost::GHOST_PATTERN_SIGNATURE;
 
 mod rpc;
-use rpc::RPC_CALL;
+use rpc::{RPC_CALL_TCP, RPC_CALL_UDP};
 
 const PROTO_HTTP: usize = 1;
 const PROTO_STUN: usize = 2;
 const PROTO_SSH: usize = 3;
 const PROTO_GHOST: usize = 4;
-const PROTO_RPC: usize = 5;
+const PROTO_RPC_TCP: usize = 5;
+const PROTO_RPC_UDP: usize = 6;
 
 struct TCPControlBlock {
     proto_state: usize,
@@ -90,8 +91,13 @@ fn proto_init() -> Smack {
         SmackFlags::ANCHOR_BEGIN,
     );
     smack.add_pattern(
-        RPC_CALL,
-        PROTO_RPC,
+        RPC_CALL_TCP,
+        PROTO_RPC_TCP,
+        SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
+    );
+    smack.add_pattern(
+        RPC_CALL_UDP,
+        PROTO_RPC_UDP,
         SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
     );
     smack.compile();
@@ -141,7 +147,8 @@ pub fn repl<'a>(
         PROTO_STUN => stun::repl(data, masscanned, &mut client_info),
         PROTO_SSH => ssh::repl(data, masscanned, &mut client_info),
         PROTO_GHOST => ghost::repl(data, masscanned, &mut client_info),
-        PROTO_RPC => rpc::repl(data, masscanned, &mut client_info),
+        PROTO_RPC_TCP => rpc::repl_tcp(data, masscanned, &mut client_info),
+        PROTO_RPC_UDP => rpc::repl_udp(data, masscanned, &mut client_info),
         _ => {
             debug!("id: {}", id);
             None
