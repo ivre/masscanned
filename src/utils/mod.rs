@@ -1,5 +1,5 @@
-mod parsers;
 mod loggers;
+mod parsers;
 
-pub use loggers::{Logger, ConsoleLogger, MetaLogger};
+pub use loggers::{ConsoleLogger, Logger, MetaLogger};
 pub use parsers::IpAddrParser;

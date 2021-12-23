@@ -25,14 +25,18 @@ pub trait Logger {
     fn init(&self);
     /* list of notifications that a logger might or might not implement */
     /* ARP */
-    fn arp_enabled(&self) -> bool { true }
+    fn arp_enabled(&self) -> bool {
+        true
+    }
     fn arp_recv(&self, _p: &ArpPacket) {}
     fn arp_recv_whohas(&self, _p: &ArpPacket) {}
     fn arp_drop(&self, _p: &ArpPacket) {}
     fn arp_send(&self, _p: &MutableArpPacket) {}
     fn arp_send_isat(&self, _p: &MutableArpPacket) {}
     /* Ethernet */
-    fn eth_enabled(&self) -> bool { true }
+    fn eth_enabled(&self) -> bool {
+        true
+    }
     fn eth_recv(&self, _p: &EthernetPacket, _c: &ClientInfo) {}
     fn eth_drop(&self, _p: &EthernetPacket, _c: &ClientInfo) {}
     fn eth_send(&self, _p: &MutableEthernetPacket, _c: &ClientInfo) {}
@@ -56,21 +60,33 @@ impl Logger for ConsoleLogger {
     fn init(&self) {
         println!("arp::init");
     }
-    fn arp_enabled(&self) -> bool { self.arp }
-    fn eth_enabled(&self) -> bool { self.arp }
+    fn arp_enabled(&self) -> bool {
+        self.arp
+    }
+    fn eth_enabled(&self) -> bool {
+        self.arp
+    }
     fn arp_recv_whohas(&self, p: &ArpPacket) {
-        println!("arp::recv\twho-has\t{:}\t{:}\t{:}", p.get_sender_hw_addr(),
-        p.get_target_hw_addr(), p.get_target_proto_addr());
+        println!(
+            "arp::recv\twho-has\t{:}\t{:}\t{:}",
+            p.get_sender_hw_addr(),
+            p.get_target_hw_addr(),
+            p.get_target_proto_addr()
+        );
     }
     fn arp_send_isat(&self, p: &MutableArpPacket) {
-        println!("arp::send\tis-at\t{:}\t{:}\t{:}\t{:}", p.get_sender_hw_addr(),
-        p.get_sender_proto_addr(),
-        p.get_target_hw_addr(), p.get_target_proto_addr());
+        println!(
+            "arp::send\tis-at\t{:}\t{:}\t{:}\t{:}",
+            p.get_sender_hw_addr(),
+            p.get_sender_proto_addr(),
+            p.get_target_hw_addr(),
+            p.get_target_proto_addr()
+        );
     }
 }
 
 pub struct MetaLogger {
-    loggers: Vec<Box<dyn Logger>>
+    loggers: Vec<Box<dyn Logger>>,
 }
 
 impl MetaLogger {
