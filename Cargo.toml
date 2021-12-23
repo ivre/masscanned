@@ -24,7 +24,6 @@ edition = "2018"
 pcap = "0.7.0"
 pcap-file = "1.1.1"
 pnet = "0.26.0"
-# pnet = { path = "libpnet" }
 clap = "2.33.3"
 log = "0.4.11"
 stderrlog = "0.5.0"
