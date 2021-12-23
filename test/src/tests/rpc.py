@@ -56,17 +56,26 @@ def test_rpc_nmap():
         result = results[0]
         assert len(result["ports"]) == 1, f"Expected 1 port, got {len(result['ports'])}"
         port = result["ports"][0]
-        assert port["port"] == 111 and port["protocol"] == (
+        assert port["port"] == 111, f"Expected port 111, got {port['port']}"
+        assert port["protocol"] == (
             "tcp" if scan == "S" else "udp"
-        )
-        assert port["service_name"] in {"rpcbind", "nfs"}
-        assert port["service_extrainfo"] in {"RPC #100000", "RPC #100003"}
+        ), f"Unexpected proto {port['protocol']} for scan {scan}"
+        assert port["service_name"] in {
+            "rpcbind",
+            "nfs",
+            }, f"Unexpected service_name: {port['service_name']}"
+        assert port["service_extrainfo"] in {
+            "RPC #100000",
+            "RPC #100003",
+            }, f"Unexpected service_extrainfo: {port['service_extrainfo']}"
         assert (
             len(port["scripts"]) == 1
         ), f"Expected 1 script, got {len(port['scripts'])}"
         script = port["scripts"][0]
         assert script["id"] == "rpcinfo", "Expected rpcinfo script, not found"
-        assert len(script["rpcinfo"]) == 1
+        assert (
+            len(script["rpcinfo"]) == 1
+        ), f"Expected 1 rpcinfo, got {len(script['rpcinfo'])}"
 
 
 @test

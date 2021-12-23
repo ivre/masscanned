@@ -75,6 +75,74 @@ def test_ipv4_tcp_http():
 
 
 @test
+def test_ipv4_tcp_http_segmented():
+    sport = 24592
+    dports = [80, 443, 5000, 53228]
+    for dport in dports:
+        seq_init = int(RandInt())
+        syn = (
+            Ether(dst=MAC_ADDR)
+            / IP(dst=IPV4_ADDR)
+            / TCP(flags="S", sport=sport, dport=dport, seq=seq_init)
+        )
+        syn_ack = srp1(syn, timeout=1)
+        assert syn_ack is not None, "expecting answer, got nothing"
+        check_ip_checksum(syn_ack)
+        assert TCP in syn_ack, "expecting TCP, got %r" % syn_ack.summary()
+        syn_ack = syn_ack[TCP]
+        assert syn_ack.flags == "SA", "expecting TCP SA, got %r" % syn_ack.flags
+        ack = (
+            Ether(dst=MAC_ADDR)
+            / IP(dst=IPV4_ADDR)
+            / TCP(
+                flags="A",
+                sport=sport,
+                dport=dport,
+                seq=seq_init + 1,
+                ack=syn_ack.seq + 1,
+            )
+        )
+        _ = srp1(ack, timeout=1)
+        # request is not complete yet
+        req = (
+            Ether(dst=MAC_ADDR)
+            / IP(dst=IPV4_ADDR)
+            / TCP(
+                flags="PA",
+                sport=sport,
+                dport=dport,
+                seq=seq_init + 1,
+                ack=syn_ack.seq + 1,
+            )
+            / Raw("GET / HTTP/1.1\r\n")
+        )
+        resp = srp1(req, timeout=1)
+        assert resp is not None, "expecting answer, got nothing"
+        check_ip_checksum(resp)
+        assert TCP in resp, "expecting TCP, got %r" % resp.summary()
+        assert resp[TCP].flags == "A"
+        req = (
+            Ether(dst=MAC_ADDR)
+            / IP(dst=IPV4_ADDR)
+            / TCP(
+                flags="PA",
+                sport=sport,
+                dport=dport,
+                seq=seq_init + len(req) + 1,
+                ack=syn_ack.seq + 1,
+            )
+            / Raw("\r\n")
+        )
+        resp = srp1(req, timeout=1)
+        assert resp is not None, "expecting answer, got nothing"
+        check_ip_checksum(resp)
+        assert TCP in resp, "expecting TCP, got %r" % resp.summary()
+        tcp = resp[TCP]
+        assert tcp.flags == "PA"
+        assert tcp.payload.load.startswith(b"HTTP/1.1 401 Unauthorized\n")
+
+
+@test
 def test_ipv4_tcp_http_incomplete():
     sport = 24595
     dports = [80, 443, 5000, 53228]
@@ -126,7 +194,7 @@ def test_ipv4_tcp_http_incomplete():
 
 @test
 def test_ipv6_tcp_http():
-    sport = 24592
+    sport = 24594
     dports = [80, 443, 5000, 53228]
     for dport in dports:
         seq_init = int(RandInt())
@@ -213,7 +281,7 @@ def test_ipv6_udp_http():
 
 @test
 def test_ipv4_tcp_http_ko():
-    sport = 24592
+    sport = 24596
     dports = [80, 443, 5000, 53228]
     for dport in dports:
         seq_init = int(RandInt())
@@ -277,7 +345,7 @@ def test_ipv4_udp_http_ko():
 
 @test
 def test_ipv6_tcp_http_ko():
-    sport = 24592
+    sport = 24597
     dports = [80, 443, 5000, 53228]
     for dport in dports:
         seq_init = int(RandInt())
