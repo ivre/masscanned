@@ -166,6 +166,8 @@ mod tests {
 
     use pnet::util::MacAddr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_ipv6_reply() {
         /* test payload is scapy> IPv6(src="7777:6666:5555:4444:3333:2222:1111:0000",
@@ -187,6 +189,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut ip_req =
             MutableIpv6Packet::owned(vec![0; Ipv6Packet::minimum_packet_size() + payload.len()])

@@ -165,6 +165,8 @@ mod tests {
 
     use pnet::util::MacAddr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_proto_dispatch_stun() {
         let mut client_info = ClientInfo::new();
@@ -180,6 +182,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         /***** TEST STUN - MAGIC *****/
         /* test payload is:
@@ -239,6 +242,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         /***** TEST SSH *****/
         let payloads = [
@@ -278,6 +282,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         /***** TEST GHOST *****/
         let payloads = [

@@ -44,14 +44,14 @@ pub trait Logger {
 
 pub struct ConsoleLogger {
     arp: bool,
-    eth: bool,
+    _eth: bool,
 }
 
 impl ConsoleLogger {
     pub fn new() -> Self {
         ConsoleLogger {
             arp: true,
-            eth: false,
+            _eth: false,
         }
     }
 }

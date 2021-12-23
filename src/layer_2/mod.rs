@@ -193,6 +193,8 @@ mod tests {
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_eth_reply() {
         /* test payload is IP(src="3.2.1.0", dst=".".join(str(b) for b in [0xaa, 0x99,
@@ -212,6 +214,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut eth_req = MutableEthernetPacket::owned(vec![
             0;

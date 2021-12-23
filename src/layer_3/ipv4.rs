@@ -163,6 +163,8 @@ mod tests {
 
     use pnet::util::MacAddr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_ipv4_reply() {
         /* test payload is scapy> ICMP() */
@@ -178,6 +180,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut ip_req =
             MutableIpv4Packet::owned(vec![0; Ipv4Packet::minimum_packet_size() + payload.len()])

@@ -160,6 +160,8 @@ mod tests {
     use pnet::packet::icmpv6::ndp::{MutableNeighborSolicitPacket, NeighborSolicit};
     use pnet::util::MacAddr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_nd_na_reply() {
         let client_info = ClientInfo::new();
@@ -174,6 +176,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         /* Legitimate solicitation */
         let ndp_ns = NeighborSolicit {
@@ -246,6 +249,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut icmpv6_echo_req = MutableIcmpv6Packet::owned(vec![
             0;

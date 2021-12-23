@@ -413,6 +413,8 @@ mod tests {
 
     use pnet::util::MacAddr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_proto_stun_ipv4() {
         /* test payload is:
@@ -439,6 +441,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let payload_resp = if let Some(r) = repl(payload, &masscanned, &mut client_info) {
             r
@@ -498,6 +501,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V6(test_ip_addr));
         client_info.ip.dst = Some(IpAddr::V6(masscanned_ip_addr));
@@ -549,6 +553,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
         client_info.ip.dst = Some(IpAddr::V4(masscanned_ip_addr));
@@ -598,6 +603,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
         client_info.ip.dst = Some(IpAddr::V4(masscanned_ip_addr));

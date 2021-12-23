@@ -70,6 +70,8 @@ mod tests {
 
     use pnet::util::MacAddr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_icmpv4_reply() {
         /* test payload is scapy> ICMP() */
@@ -81,6 +83,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: None,
+            log: MetaLogger::new(),
         };
         let mut icmp_req =
             MutableIcmpPacket::owned(vec![0; IcmpPacket::minimum_packet_size() + payload.len()])

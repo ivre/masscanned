@@ -72,6 +72,8 @@ mod tests {
 
     use pnet::util::MacAddr;
 
+    use crate::utils::MetaLogger;
+
     #[test]
     fn test_arp_reply() {
         let mut ips = HashSet::new();
@@ -82,6 +84,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut arp_req =
             MutableArpPacket::owned([0; 28].to_vec()).expect("error constructing ARP request");
