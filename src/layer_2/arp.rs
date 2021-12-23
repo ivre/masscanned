@@ -29,20 +29,18 @@ pub fn repl<'a, 'b>(
     arp_req: &'a ArpPacket,
     masscanned: &Masscanned,
 ) -> Option<MutableArpPacket<'b>> {
+    masscanned.log.arp_recv(arp_req);
     let mut arp_repl =
         MutableArpPacket::owned(arp_req.packet().to_vec()).expect("error parsing ARP packet");
     /* Build ARP answer depending of the type of request */
     match arp_req.get_operation() {
         ArpOperations::Request => {
+            masscanned.log.arp_recv_whohas(arp_req);
             let ip = IpAddr::V4(arp_req.get_target_proto_addr());
             /* Ignore ARP requests for IP addresses not handled by masscanned */
             if let Some(ip_addr_list) = masscanned.ip_addresses {
                 if !ip_addr_list.contains(&ip) {
-                    info!(
-                        "Ignoring ARP request from {} for IP {}",
-                        arp_req.get_sender_hw_addr(),
-                        ip
-                    );
+                    masscanned.log.arp_drop(arp_req);
                     return None;
                 }
             }
@@ -53,14 +51,12 @@ pub fn repl<'a, 'b>(
             arp_repl.set_target_hw_addr(arp_req.get_sender_hw_addr().to_owned());
             arp_repl.set_target_proto_addr(arp_req.get_sender_proto_addr().to_owned());
             arp_repl.set_sender_proto_addr(arp_req.get_target_proto_addr().to_owned());
-            warn!(
-                "ARP-Reply to {} for IP {}",
-                arp_req.get_sender_hw_addr(),
-                arp_repl.get_sender_proto_addr()
-            );
+            masscanned.log.arp_send_isat(&arp_repl);
+            masscanned.log.arp_send(&arp_repl);
         }
         _ => {
             info!("ARP Operation not handled: {:?}", arp_repl.get_operation());
+            masscanned.log.arp_drop(arp_req);
             return None;
         }
     };

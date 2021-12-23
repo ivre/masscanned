@@ -104,7 +104,7 @@ pub fn reply<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableEthernetPacket<'b>> {
-    debug!("receiving Ethernet packet: {:?}", eth_req);
+    masscanned.log.eth_recv(eth_req, &client_info);
     let mut eth_repl;
     /* First, check if the destination MAC address is one of those masscanned
      * is authorized to answer to (avoid answering to packets addressed to
