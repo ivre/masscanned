@@ -25,6 +25,7 @@ use crate::smack::{
     Smack, SmackFlags, BASE_STATE, NO_MATCH, SMACK_CASE_INSENSITIVE, UNANCHORED_STATE,
 };
 use crate::Masscanned;
+use crate::proto::{TCPControlBlock};
 
 pub const HTTP_VERBS: [&str; 9] = [
     "GET", "PUT", "POST", "HEAD", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
@@ -62,7 +63,7 @@ const HTTP_STATE_CONTENT: usize = 64;
 
 const HTTP_STATE_FAIL: usize = 0xFFFF;
 
-struct ProtocolState {
+pub struct ProtocolState {
     state: usize,
     state_bis: usize,
     smack_state: usize,
@@ -223,6 +224,7 @@ pub fn repl<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     _client_info: &ClientInfo,
+    _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     debug!("receiving HTTP data");
     let mut pstate = ProtocolState::new();

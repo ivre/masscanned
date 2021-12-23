@@ -21,6 +21,7 @@ use flate2::write::ZlibEncoder;
 use flate2::Compression;
 
 use crate::client::ClientInfo;
+use crate::proto::TCPControlBlock;
 use crate::Masscanned;
 
 pub const GHOST_PATTERN_SIGNATURE: &[u8; 5] = b"Gh0st";
@@ -29,6 +30,7 @@ pub fn repl<'a>(
     _data: &'a [u8],
     _masscanned: &Masscanned,
     _client_info: &mut ClientInfo,
+    _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     debug!("receiving Gh0st data, sending one null byte payload");
     // Packet structure:

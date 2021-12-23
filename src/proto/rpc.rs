@@ -19,6 +19,7 @@ use std::convert::TryInto;
 use std::net::IpAddr;
 
 use crate::client::ClientInfo;
+use crate::proto::TCPControlBlock;
 use crate::Masscanned;
 
 // last fragment (1 bit) + fragment len (31 bits) / length XID (random) / message type: call (0) / RPC version (0-255) / Program: Portmap (99840 - 100095) / Program version (*, random versions used, see below) / / Procedure: ??? (0-255)
@@ -47,7 +48,7 @@ enum RpcState {
 }
 
 #[derive(Debug)]
-struct ProtocolState {
+pub struct ProtocolState {
     state: RpcState,
     last_frag: bool,
     frag_len: u32,
@@ -373,6 +374,7 @@ pub fn repl_tcp<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     client_info: &ClientInfo,
+    _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     let mut pstate = ProtocolState::new();
     rpc_parse(&mut pstate, data);
@@ -402,6 +404,7 @@ pub fn repl_udp<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     client_info: &ClientInfo,
+    _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     let mut pstate = ProtocolState::new();
     pstate.state = RpcState::Xid;
