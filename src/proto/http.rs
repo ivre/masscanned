@@ -232,6 +232,11 @@ pub fn repl<'a>(
         debug!("pstate: {}", pstate.state);
         return None;
     }
+    /* if not in CONTENT state, not responding yet (it means the client
+     * has not finished sending headers yet) */
+    if pstate.state != HTTP_STATE_CONTENT {
+        return None;
+    }
     let content = "\
 <html>
 <head><title>401 Authorization Required</title></head>
