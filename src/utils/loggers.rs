@@ -44,14 +44,14 @@ pub trait Logger {
 
 pub struct ConsoleLogger {
     arp: bool,
-    _eth: bool,
+    eth: bool,
 }
 
 impl ConsoleLogger {
     pub fn new() -> Self {
         ConsoleLogger {
             arp: true,
-            _eth: false,
+            eth: false,
         }
     }
 }
@@ -64,7 +64,7 @@ impl Logger for ConsoleLogger {
         self.arp
     }
     fn eth_enabled(&self) -> bool {
-        self.arp
+        self.eth
     }
     fn arp_recv_whohas(&self, p: &ArpPacket) {
         println!(
