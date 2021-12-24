@@ -22,8 +22,11 @@ use crate::client::ClientInfo;
 use crate::Masscanned;
 
 // last fragment (1 bit) + fragment len (31 bits) / length XID (random) / message type: call (0) / RPC version (0-255) / Program: Portmap (99840 - 100095) / Program version (*, random versions used, see below) / / Procedure: ??? (0-255)
-pub const RPC_CALL: &[u8; 28] =
+pub const RPC_CALL_TCP: &[u8; 28] =
     b"********\x00\x00\x00\x00\x00\x00\x00*\x00\x01\x86*****\x00\x00\x00*";
+// UDP: last fragment and fragment len are missing
+pub const RPC_CALL_UDP: &[u8; 24] =
+    b"****\x00\x00\x00\x00\x00\x00\x00*\x00\x01\x86*****\x00\x00\x00*";
 
 #[derive(Debug)]
 enum RpcState {
@@ -363,24 +366,47 @@ fn build_repl(pstate: ProtocolState, client_info: &ClientInfo) -> Vec<u8> {
         };
         resp.append(&mut specif_resp);
     }
-    let length: u32 = resp.len().try_into().unwrap();
-    let mut final_resp = Vec::<u8>::new();
-    for i in 0..4 {
-        match i {
-            0 => final_resp.push(get_nth_byte(length, i) | 0x80),
-            _ => final_resp.push(get_nth_byte(length, i)),
-        };
-    }
-    final_resp.append(&mut resp);
-    final_resp
+    resp
 }
 
-pub fn repl<'a>(
+pub fn repl_tcp<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     client_info: &ClientInfo,
 ) -> Option<Vec<u8>> {
     let mut pstate = ProtocolState::new();
+    rpc_parse(&mut pstate, data);
+    // warn!("RPC {:#?}", pstate);
+    let resp = match pstate.state {
+        RpcState::End => Some(build_repl(pstate, client_info)),
+        _ => None,
+    };
+    match resp {
+        Some(mut resp) => {
+            let length: u32 = resp.len().try_into().unwrap();
+            let mut final_resp = Vec::<u8>::new();
+            for i in 0..4 {
+                match i {
+                    0 => final_resp.push(get_nth_byte(length, i) | 0x80),
+                    _ => final_resp.push(get_nth_byte(length, i)),
+                };
+            }
+            final_resp.append(&mut resp);
+            Some(final_resp)
+        }
+        _ => None,
+    }
+}
+
+pub fn repl_udp<'a>(
+    data: &'a [u8],
+    _masscanned: &Masscanned,
+    client_info: &ClientInfo,
+) -> Option<Vec<u8>> {
+    let mut pstate = ProtocolState::new();
+    pstate.state = RpcState::Xid;
+    pstate.last_frag = true;
+    pstate.frag_len = data.len().try_into().unwrap();
     rpc_parse(&mut pstate, data);
     // warn!("RPC {:#?}", pstate);
     match pstate.state {
@@ -427,7 +453,26 @@ mod tests {
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
         let resp = build_repl(pstate, &CLIENT_INFO);
-        assert!(resp == b"\x80\x00\x00\x20\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+        assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+    }
+
+    #[test]
+    fn test_probe_nmap_udp() {
+        let mut pstate = ProtocolState::new();
+        pstate.state = RpcState::Xid;
+        rpc_parse(&mut pstate, b"\x72\xfe\x1d\x13\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xa0\x00\x01\x97\x7c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
+        assert!(matches!(pstate.state, RpcState::End));
+        assert!(pstate.xid == 0x72fe1d13);
+        assert!(pstate.rpc_version == 2);
+        assert!(pstate.program == 100000);
+        assert!(pstate.prog_version == 104316);
+        assert!(pstate.procedure == 0);
+        assert!(pstate.creds_flavor == 0);
+        assert!(pstate.creds_data.len() == 0);
+        assert!(pstate.verif_flavor == 0);
+        assert!(pstate.verif_data.len() == 0);
+        let resp = build_repl(pstate, &CLIENT_INFO);
+        assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
     }
 
     #[test]
@@ -447,7 +492,7 @@ mod tests {
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
         let resp = build_repl(pstate, &CLIENT_INFO);
-        assert!(resp == b"\x80\x00\x00\x20\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+        assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
     }
 
     #[test]
@@ -475,7 +520,7 @@ mod tests {
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
         let resp = build_repl(pstate, &CLIENT_INFO);
-        assert!(resp == b"\x80\x00\x00\x20\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+        assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
     }
 
     #[test]
