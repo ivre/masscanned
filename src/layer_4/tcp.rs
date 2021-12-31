@@ -78,9 +78,17 @@ pub fn repl<'a, 'b>(
             /* answer here when server needs to speak first after handshake */
             return None;
         }
-        /* Answer to RST and FIN: nothing */
-        flags if (flags == TcpFlags::RST || flags == (TcpFlags::FIN | TcpFlags::ACK)) => {
+        /* Answer to RST: nothing */
+        flags if flags == TcpFlags::RST => {
             return None;
+        }
+        /* Answer to FIN,ACK with FIN,ACK */
+        flags if flags == (TcpFlags::FIN | TcpFlags::ACK) => {
+            tcp_repl = MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()])
+                .expect("error constructing a TCP packet");
+            tcp_repl.set_flags(TcpFlags::FIN | TcpFlags::ACK);
+            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + 1);
+            tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
         /* Answer to SYN */
         flags if flags & TcpFlags::SYN == TcpFlags::SYN => {
@@ -165,7 +173,7 @@ mod tests {
         assert!(tcp_repl.get_flags() == (TcpFlags::FIN | TcpFlags::ACK));
         /* check reply seq and ack */
         assert!(tcp_repl.get_sequence() == ack);
-        assert!(tcp_repl.get_acknowledgement() == seq);
+        assert!(tcp_repl.get_acknowledgement() == seq + 1);
     }
 
     #[test]
