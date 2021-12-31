@@ -193,16 +193,20 @@ except AssertionError:
     result = -1
 
 # terminate masscanned
-masscanned.kill()
+masscanned.send_signal(2)
+masscanned.terminate()
 masscanned.wait()
 # terminate capture
 if TCPDUMP:
-    tcpdump.kill()
+    tcpdump.send_signal(2)
+    tcpdump.terminate()
     tcpdump.wait()
 if ZEEK_PASSIVERECON:
-    zeek.kill()
+    zeek.send_signal(2)
+    zeek.terminate()
     zeek.wait()
 if P0F:
-    p0f.kill()
+    p0f.send_signal(2)
+    p0f.terminate()
     p0f.wait()
 sys.exit(result)
