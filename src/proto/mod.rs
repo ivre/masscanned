@@ -42,6 +42,7 @@ use rpc::{ProtocolState as RPCProtocolState, RPC_CALL_TCP, RPC_CALL_UDP};
 mod smb;
 use smb::{SMB1_PATTERN_MAGIC, SMB2_PATTERN_MAGIC};
 
+const PROTO_NONE: usize = 0;
 const PROTO_HTTP: usize = 1;
 const PROTO_STUN: usize = 2;
 const PROTO_SSH: usize = 3;
@@ -52,13 +53,15 @@ const PROTO_SMB1: usize = 7;
 const PROTO_SMB2: usize = 8;
 
 enum ProtocolState {
-    HTTPProtocolState,
-    RPCProtocolState,
+    HTTP(HTTPProtocolState),
+    RPC(RPCProtocolState),
 }
 
 pub struct TCPControlBlock {
     /* state used to detect protocols (not specific) */
     smack_state: usize,
+    /* detected protocol */
+    proto_id: usize,
     /* internal state of protocol parser (e.g., HTTP parsing) */
     proto_state: Option<ProtocolState>,
 }
@@ -147,6 +150,7 @@ pub fn repl<'a>(
                 cookie,
                 TCPControlBlock {
                     smack_state: BASE_STATE,
+                    proto_id: PROTO_NONE,
                     proto_state: None,
                 },
             );
