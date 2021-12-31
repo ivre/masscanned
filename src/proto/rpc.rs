@@ -19,7 +19,7 @@ use std::convert::TryInto;
 use std::net::IpAddr;
 
 use crate::client::ClientInfo;
-use crate::proto::TCPControlBlock;
+use crate::proto::{ProtocolState as GenericProtocolState, TCPControlBlock};
 use crate::Masscanned;
 
 // last fragment (1 bit) + fragment len (31 bits) / length XID (random) / message type: call (0) / RPC version (0-255) / Program: Portmap (99840 - 100095) / Program version (*, random versions used, see below) / / Procedure: ??? (0-255)
@@ -211,7 +211,7 @@ fn push_string_pad(buffer: &mut Vec<u8>, data: String) {
     }
 }
 
-fn build_repl_portmap(pstate: ProtocolState, client_info: &ClientInfo) -> Vec<u8> {
+fn build_repl_portmap(pstate: &mut ProtocolState, client_info: &ClientInfo) -> Vec<u8> {
     let mut resp = Vec::<u8>::new();
     match pstate.procedure {
         // 0 => {}
@@ -314,7 +314,7 @@ fn build_repl_portmap(pstate: ProtocolState, client_info: &ClientInfo) -> Vec<u8
     resp
 }
 
-fn build_repl_unknownprog(pstate: ProtocolState, _client_info: &ClientInfo) -> Vec<u8> {
+fn build_repl_unknownprog(pstate: &mut ProtocolState, _client_info: &ClientInfo) -> Vec<u8> {
     warn!(
         "Unknown program {}, procedure {}: accepted state 1",
         pstate.program, pstate.procedure
@@ -323,7 +323,7 @@ fn build_repl_unknownprog(pstate: ProtocolState, _client_info: &ClientInfo) -> V
     vec![0, 0, 0, 1]
 }
 
-fn build_repl(pstate: ProtocolState, client_info: &ClientInfo) -> Vec<u8> {
+fn build_repl(pstate: &mut ProtocolState, client_info: &ClientInfo) -> Vec<u8> {
     // TODO: test RPC versions, drop non calls?
     let mut resp = Vec::<u8>::new();
     push_u32(&mut resp, pstate.xid);
@@ -374,9 +374,27 @@ pub fn repl_tcp<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     client_info: &ClientInfo,
-    _tcb: Option<&mut TCPControlBlock>,
+    tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
-    let mut pstate = ProtocolState::new();
+    let mut state = ProtocolState::new();
+    let mut pstate = {
+        if let Some(t) = tcb {
+            match t.proto_state {
+                None => t.proto_state = Some(GenericProtocolState::RPC(ProtocolState::new())),
+                Some(GenericProtocolState::RPC(_)) => {}
+                _ => {
+                    panic!()
+                }
+            };
+            if let Some(GenericProtocolState::RPC(p)) = &mut t.proto_state {
+                p
+            } else {
+                panic!();
+            }
+        } else {
+            &mut state
+        }
+    };
     rpc_parse(&mut pstate, data);
     // warn!("RPC {:#?}", pstate);
     let resp = match pstate.state {
@@ -413,7 +431,7 @@ pub fn repl_udp<'a>(
     rpc_parse(&mut pstate, data);
     // warn!("RPC {:#?}", pstate);
     match pstate.state {
-        RpcState::End => Some(build_repl(pstate, client_info)),
+        RpcState::End => Some(build_repl(&mut pstate, client_info)),
         _ => None,
     }
 }
@@ -455,7 +473,7 @@ mod tests {
         assert!(pstate.creds_data.len() == 0);
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
-        let resp = build_repl(pstate, &CLIENT_INFO);
+        let resp = build_repl(&mut pstate, &CLIENT_INFO);
         assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
     }
 
@@ -474,7 +492,7 @@ mod tests {
         assert!(pstate.creds_data.len() == 0);
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
-        let resp = build_repl(pstate, &CLIENT_INFO);
+        let resp = build_repl(&mut pstate, &CLIENT_INFO);
         assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
     }
 
@@ -494,7 +512,7 @@ mod tests {
         assert!(pstate.creds_data.len() == 0);
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
-        let resp = build_repl(pstate, &CLIENT_INFO);
+        let resp = build_repl(&mut pstate, &CLIENT_INFO);
         assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
     }
 
@@ -522,7 +540,7 @@ mod tests {
         assert!(pstate.creds_data.len() == 0);
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
-        let resp = build_repl(pstate, &CLIENT_INFO);
+        let resp = build_repl(&mut pstate, &CLIENT_INFO);
         assert!(resp == b"\x72\xfe\x1d\x13\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
     }
 
