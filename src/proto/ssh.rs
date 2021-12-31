@@ -26,7 +26,7 @@ pub const SSH_PATTERN_CLIENT_PROTOCOL: &[u8; 7] = b"SSH-2.0";
 
 pub fn repl<'a>(
     data: &'a [u8],
-     _masscanned: &Masscanned,
+    _masscanned: &Masscanned,
     mut _client_info: &mut ClientInfo,
     _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {

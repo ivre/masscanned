@@ -21,11 +21,11 @@ use lazy_static::lazy_static;
 use std::str;
 
 use crate::client::ClientInfo;
+use crate::proto::TCPControlBlock;
 use crate::smack::{
     Smack, SmackFlags, BASE_STATE, NO_MATCH, SMACK_CASE_INSENSITIVE, UNANCHORED_STATE,
 };
 use crate::Masscanned;
-use crate::proto::{TCPControlBlock};
 
 pub const HTTP_VERBS: [&str; 9] = [
     "GET", "PUT", "POST", "HEAD", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
