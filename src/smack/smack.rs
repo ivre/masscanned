@@ -708,8 +708,12 @@ mod tests {
         assert!(id == 1);
         let mut state = BASE_STATE;
         let mut offset = 0;
+        let mut id = smack.search_next(&mut state, &b"xxxxbxabcd".to_vec(), &mut offset);
+        assert!(id == 1);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
         let mut id = smack.search_next(&mut state, &b"xxxxaxabcd".to_vec(), &mut offset);
-        assert!(id == 0);
+        assert!(id == 1);
     }
 
     #[test]
