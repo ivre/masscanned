@@ -537,4 +537,72 @@ mod tests {
         assert!(pstate.verif_flavor == 0);
         assert!(pstate.verif_data.len() == 0);
     }
+
+    #[test]
+    fn test_probe_nmap_xid() {
+        let mut pstate = ProtocolState::new();
+        /* legitimate packet sent by nmap in some situations */
+        rpc_parse(&mut pstate, b"\x80\x00\x00(\x06'\xe3\xff\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xa3\x04\x17N\xe2\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
+        assert!(matches!(pstate.state, RpcState::End));
+        assert!(pstate.xid == 0x0627e3ff);
+        assert!(pstate.rpc_version == 2);
+        assert!(pstate.program == 100003);
+        assert!(pstate.prog_version == 68636386);
+        assert!(pstate.procedure == 0);
+        assert!(pstate.creds_flavor == 0);
+        assert!(pstate.creds_data.len() == 0);
+        assert!(pstate.verif_flavor == 0);
+        assert!(pstate.verif_data.len() == 0);
+        let resp = build_repl(pstate, &CLIENT_INFO);
+        assert!(resp == b"\x06'\xe3\xff\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+        /* different xid */
+        let mut pstate = ProtocolState::new();
+        rpc_parse(&mut pstate, b"\x80\x00\x00(\x00\xa9]O\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xa3\x04\x17N\xe2\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
+        assert!(matches!(pstate.state, RpcState::End));
+        assert!(pstate.xid == 0x00a95d4f);
+        assert!(pstate.rpc_version == 2);
+        assert!(pstate.program == 100003);
+        assert!(pstate.prog_version == 68636386);
+        assert!(pstate.procedure == 0);
+        assert!(pstate.creds_flavor == 0);
+        assert!(pstate.creds_data.len() == 0);
+        assert!(pstate.verif_flavor == 0);
+        assert!(pstate.verif_data.len() == 0);
+        let resp = build_repl(pstate, &CLIENT_INFO);
+        assert!(resp == b"\x00\xa9]O\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+    }
+
+    #[test]
+    fn test_probe_nmap_program_version() {
+        let mut pstate = ProtocolState::new();
+        /* legitimate packet sent by nmap in some situations */
+        rpc_parse(&mut pstate, b"\x80\x00\x00(\x06'\xe3\xff\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xa3\x04\x17N\xe2\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
+        assert!(matches!(pstate.state, RpcState::End));
+        assert!(pstate.xid == 0x0627e3ff);
+        assert!(pstate.rpc_version == 2);
+        assert!(pstate.program == 100003);
+        assert!(pstate.prog_version == 68636386);
+        assert!(pstate.procedure == 0);
+        assert!(pstate.creds_flavor == 0);
+        assert!(pstate.creds_data.len() == 0);
+        assert!(pstate.verif_flavor == 0);
+        assert!(pstate.verif_data.len() == 0);
+        let resp = build_repl(pstate, &CLIENT_INFO);
+        assert!(resp == b"\x06'\xe3\xff\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+        /* different program version */
+        let mut pstate = ProtocolState::new();
+        rpc_parse(&mut pstate, b"\x80\x00\x00(\x06'\xe3\xff\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xa3\x04y\xabj\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
+        assert!(matches!(pstate.state, RpcState::End));
+        assert!(pstate.xid == 0x0627e3ff);
+        assert!(pstate.rpc_version == 2);
+        assert!(pstate.program == 100003);
+        assert!(pstate.prog_version == 75082602);
+        assert!(pstate.procedure == 0);
+        assert!(pstate.creds_flavor == 0);
+        assert!(pstate.creds_data.len() == 0);
+        assert!(pstate.verif_flavor == 0);
+        assert!(pstate.verif_data.len() == 0);
+        let resp = build_repl(pstate, &CLIENT_INFO);
+        assert!(resp == b"\x06'\xe3\xff\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x04");
+    }
 }
