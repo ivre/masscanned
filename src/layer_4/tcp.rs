@@ -78,9 +78,17 @@ pub fn repl<'a, 'b>(
             /* answer here when server needs to speak first after handshake */
             return None;
         }
-        /* Answer to RST and FIN: nothing */
-        flags if (flags == TcpFlags::RST || flags == (TcpFlags::FIN | TcpFlags::ACK)) => {
+        /* Answer to RST: nothing */
+        flags if flags == TcpFlags::RST => {
             return None;
+        }
+        /* Answer to FIN,ACK with FIN,ACK */
+        flags if flags == (TcpFlags::FIN | TcpFlags::ACK) => {
+            tcp_repl = MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()])
+                .expect("error constructing a TCP packet");
+            tcp_repl.set_flags(TcpFlags::FIN | TcpFlags::ACK);
+            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + 1);
+            tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
         /* Answer to SYN */
         flags if flags & TcpFlags::SYN == TcpFlags::SYN => {
@@ -117,6 +125,56 @@ mod tests {
     use crate::client::ClientInfoSrcDst;
     use pnet::util::MacAddr;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+    #[test]
+    fn test_tcp_fin_ack() {
+        let masscanned = Masscanned {
+            mac: MacAddr(0, 0, 0, 0, 0, 0),
+            ip_addresses: None,
+            synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
+            iface: None,
+        };
+        /* reference */
+        let ip_src = IpAddr::V4(Ipv4Addr::new(27, 198, 143, 1));
+        let ip_dst = IpAddr::V4(Ipv4Addr::new(90, 64, 122, 203));
+        let tcp_sport = 65500;
+        let tcp_dport = 80;
+        let seq = 1234567;
+        let ack = 7654321;
+        let mut client_info = ClientInfo {
+            mac: ClientInfoSrcDst {
+                src: None,
+                dst: None,
+            },
+            ip: ClientInfoSrcDst {
+                src: Some(ip_src),
+                dst: Some(ip_dst),
+            },
+            transport: None,
+            port: ClientInfoSrcDst {
+                src: Some(tcp_sport),
+                dst: Some(tcp_dport),
+            },
+            cookie: None,
+        };
+        let mut tcp_req =
+            MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()]).unwrap();
+        tcp_req.set_source(tcp_sport);
+        tcp_req.set_destination(tcp_dport);
+        tcp_req.set_sequence(seq);
+        tcp_req.set_acknowledgement(ack);
+        tcp_req.set_flags(TcpFlags::FIN | TcpFlags::ACK);
+        let some_tcp_repl = repl(&tcp_req.to_immutable(), &masscanned, &mut client_info);
+        if some_tcp_repl == None {
+            panic!("expected a reply, got none");
+        }
+        let tcp_repl = some_tcp_repl.unwrap();
+        /* check reply flags */
+        assert!(tcp_repl.get_flags() == (TcpFlags::FIN | TcpFlags::ACK));
+        /* check reply seq and ack */
+        assert!(tcp_repl.get_sequence() == ack);
+        assert!(tcp_repl.get_acknowledgement() == seq + 1);
+    }
 
     #[test]
     fn test_synack_cookie_ipv4() {
