@@ -685,6 +685,34 @@ mod tests {
     }
 
     #[test]
+    fn test_wildcard_collision() {
+        let mut smack = Smack::new("test".to_string(), SMACK_CASE_INSENSITIVE);
+        smack.add_pattern(
+            b"****abcd",
+            0,
+            SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
+        );
+        smack.add_pattern(
+            b"******abcd",
+            1,
+            SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
+        );
+        smack.compile();
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let id = smack.search_next(&mut state, &b"xxxxabcd".to_vec(), &mut offset);
+        assert!(id == 0);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let mut id = smack.search_next(&mut state, &b"xxxxxxabcd".to_vec(), &mut offset);
+        assert!(id == 1);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let mut id = smack.search_next(&mut state, &b"xxxxaxabcd".to_vec(), &mut offset);
+        assert!(id == 0);
+    }
+
+    #[test]
     fn test_multiple_matches() {
         let mut smack = Smack::new("test".to_string(), SMACK_CASE_INSENSITIVE);
         smack.add_pattern(b"aabb", 0, SmackFlags::ANCHOR_BEGIN);
