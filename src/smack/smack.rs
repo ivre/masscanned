@@ -733,31 +733,32 @@ mod tests {
     fn test_wildcard_collision() {
         let mut smack = Smack::new("test".to_string(), SMACK_CASE_INSENSITIVE);
         smack.add_pattern(
-            b"****abcd",
+            b"ab",
             0,
             SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
         );
         smack.add_pattern(
-            b"******abcd",
+            b"*ab",
             1,
             SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
         );
         smack.compile();
+        smack.show();
         let mut state = BASE_STATE;
         let mut offset = 0;
-        let id = smack.search_next(&mut state, &b"xxxxabcd".to_vec(), &mut offset);
+        let id = smack.search_next(&mut state, &b"ab".to_vec(), &mut offset);
         assert!(id == 0);
         let mut state = BASE_STATE;
         let mut offset = 0;
-        let mut id = smack.search_next(&mut state, &b"xxxxxxabcd".to_vec(), &mut offset);
+        let mut id = smack.search_next(&mut state, &b"xab".to_vec(), &mut offset);
         assert!(id == 1);
         let mut state = BASE_STATE;
         let mut offset = 0;
-        let mut id = smack.search_next(&mut state, &b"xxxxbxabcd".to_vec(), &mut offset);
+        let mut id = smack.search_next(&mut state, &b"bab".to_vec(), &mut offset);
         assert!(id == 1);
         let mut state = BASE_STATE;
         let mut offset = 0;
-        let mut id = smack.search_next(&mut state, &b"xxxxaxabcd".to_vec(), &mut offset);
+        let mut id = smack.search_next(&mut state, &b"aab".to_vec(), &mut offset);
         assert!(id == 1);
     }
 
@@ -793,6 +794,10 @@ mod tests {
         let mut state = BASE_STATE;
         let mut offset = 0;
         let id = smack.search_next(&mut state, &b"bac".to_vec(), &mut offset);
+        assert!(id == 1);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let id = smack.search_next(&mut state, &b"aac".to_vec(), &mut offset);
         assert!(id == 1);
     }
 
