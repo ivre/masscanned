@@ -37,6 +37,9 @@ jobs:
         command: fmt
         args: -- --check
 
+    - name: Install packages for build
+      run: sudo apt-get -q update && sudo apt-get -qy install libpcap-dev
+
     - name: Run cargo build
       uses: actions-rs/cargo@v1
       with:
