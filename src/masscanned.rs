@@ -102,8 +102,8 @@ fn main() {
         .version(VERSION)
         .about("Network answering machine for various network protocols (L2-L3-L4 + applications)")
         .arg(
-            Arg::with_name("interface")
-                .short("i")
+            Arg::new("interface")
+                .short('i')
                 .long("iface")
                 .value_name("iface")
                 .help("the interface to use for receiving/sending packets")
@@ -111,23 +111,23 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mac")
-                .short("a")
+            Arg::new("mac")
+                .short('a')
                 .long("mac-addr")
                 .help("MAC address to use in the response packets")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("ip")
-                .short("f")
+            Arg::new("ip")
+                .short('f')
                 .long("ip-addr-file")
                 .help("File with the list of IP addresses to impersonate")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("verbosity")
-                .short("v")
-                .multiple(true)
+            Arg::new("verbosity")
+                .short('v')
+                .multiple_occurrences(true)
                 .help("Increase message verbosity"),
         )
         .get_matches();
@@ -143,9 +143,6 @@ fn main() {
     debug!("debug messages enabled");
     trace!("trace messages enabled");
     info!("Command line arguments:");
-    for arg in &args.args {
-        info!("....{:?}", arg);
-    }
     let iface = if let Some(i) = get_interface(
         args.value_of("interface")
             .expect("error parsing iface argument"),
