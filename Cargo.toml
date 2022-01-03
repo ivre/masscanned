@@ -21,7 +21,7 @@ authors = ["_Frky <3105926+Frky@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-pcap = "0.7.0"
+pcap = "0.9.1"
 pcap-file = "1.1.1"
 pnet = "0.28.0"
 clap = "2.33.3"
