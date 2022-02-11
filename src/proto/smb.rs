@@ -36,14 +36,56 @@ const SECURITY_BLOB: &[u8; 320] = b"`\x82\x01<\x06\x06+\x06\x01\x05\x05\x02\xa0\
 // Common //
 ////////////
 
-pub trait Packet {
-    type PacketState;
+/// ### PacketDissector
+/// A util class used to dissecate fields.
+#[derive(Debug, Clone)]
+struct PacketDissector<T> {
+    i: usize,
+    state: T,
+}
+impl<T> PacketDissector<T> {
+    fn new(initial_state: T) -> PacketDissector<T> {
+        return PacketDissector {
+            i: 0,
+            state: initial_state,
+        };
+    }
+    fn next_state(&mut self, state: T) {
+        self.state = state;
+        self.i = 0;
+    }
+    fn next_state_when_i_reaches(&mut self, state: T, i: usize) {
+        if self.i == i {
+            self.next_state(state);
+        }
+    }
+    fn _read_u(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
+        self.i += 1;
+        self.next_state_when_i_reaches(next_state, size);
+        (value << 8) + *byte as usize
+    }
+    fn _read_ule(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
+        let ret = value + ((*byte as usize) << (8 * self.i));
+        self.i += 1;
+        self.next_state_when_i_reaches(next_state, size);
+        ret
+    }
+    fn read_u16(&mut self, byte: &u8, value: u16, next_state: T) -> u16 {
+        self._read_u(byte, value as usize, next_state, 2) as u16
+    }
+    fn read_ule16(&mut self, byte: &u8, value: u16, next_state: T) -> u16 {
+        self._read_ule(byte, value as usize, next_state, 2) as u16
+    }
+    fn read_ule32(&mut self, byte: &u8, value: u32, next_state: T) -> u32 {
+        self._read_ule(byte, value as usize, next_state, 4) as u32
+    }
+    fn read_ule64(&mut self, byte: &u8, value: u64, next_state: T) -> u64 {
+        self._read_ule(byte, value as usize, next_state, 8) as u64
+    }
+}
 
+pub trait Packet {
     fn new() -> Self;
-    fn i(&self) -> usize;
-    fn set_i(&mut self, i: usize);
-    fn state(&self) -> Self::PacketState;
-    fn set_state(&mut self, state: Self::PacketState);
     fn repl(&self) -> Option<Vec<u8>>;
     fn parse(&mut self, byte: &u8);
 
@@ -51,51 +93,6 @@ pub trait Packet {
         for byte in bytes {
             self.parse(byte);
         }
-    }
-
-    fn next_state(&mut self, state: Self::PacketState) {
-        self.set_state(state);
-        self.set_i(0);
-    }
-    fn next_state_when_i_reaches(&mut self, state: Self::PacketState, i: usize) {
-        if self.i() == i {
-            self.next_state(state);
-        }
-    }
-    fn _read_u(
-        &mut self,
-        byte: &u8,
-        value: usize,
-        next_state: Self::PacketState,
-        size: usize,
-    ) -> usize {
-        self.set_i(self.i() + 1);
-        self.next_state_when_i_reaches(next_state, size);
-        (value << 8) + *byte as usize
-    }
-    fn _read_ule(
-        &mut self,
-        byte: &u8,
-        value: usize,
-        next_state: Self::PacketState,
-        size: usize,
-    ) -> usize {
-        let ret = value + ((*byte as usize) << (8 * self.i()));
-        self.set_i(self.i() + 1);
-        self.next_state_when_i_reaches(next_state, size);
-        ret
-    }
-    fn read_u16(&mut self, byte: &u8, value: u16, next_state: Self::PacketState) -> u16 {
-        self._read_u(byte, value as usize, next_state, 2) as u16
-    }
-    fn read_ule16(&mut self, byte: &u8, value: u16, next_state: Self::PacketState) -> u16 {
-        self._read_ule(byte, value as usize, next_state, 2) as u16
-    }
-    fn read_ule32(&mut self, byte: &u8, value: u32, next_state: Self::PacketState) -> u32 {
-        self._read_ule(byte, value as usize, next_state, 4) as u32
-    }
-    fn read_ule64(&mut self, byte: &u8, value: u64, next_state: Self::PacketState) -> u64 {
-        self._read_ule(byte, value as usize, next_state, 8) as u64
     }
 }
 
@@ -114,8 +111,7 @@ enum NBTSessionState {
 #[derive(Debug, Clone)]
 struct NBTSession<T: Packet> {
     // DISSECTION
-    state: NBTSessionState,
-    i: usize,
+    d: PacketDissector<NBTSessionState>,
     // STRUCT
     nb_type: u8,
     length: u16,
@@ -123,25 +119,9 @@ struct NBTSession<T: Packet> {
 }
 
 impl<T: Packet> Packet for NBTSession<T> {
-    type PacketState = NBTSessionState;
-
-    fn i(&self) -> usize {
-        self.i
-    }
-    fn set_i(&mut self, i: usize) {
-        self.i = i;
-    }
-    fn state(&self) -> Self::PacketState {
-        self.state
-    }
-    fn set_state(&mut self, state: Self::PacketState) {
-        self.state = state;
-    }
-
     fn new() -> NBTSession<T> {
         Self {
-            state: NBTSessionState::NBType,
-            i: 0,
+            d: PacketDissector::new(NBTSessionState::NBType),
             nb_type: 0,
             length: 0,
             payload: None,
@@ -149,16 +129,16 @@ impl<T: Packet> Packet for NBTSession<T> {
     }
 
     fn parse(&mut self, byte: &u8) {
-        match self.state {
+        match self.d.state {
             NBTSessionState::NBType => {
                 self.nb_type = *byte;
-                self.next_state(NBTSessionState::Reserved);
+                self.d.next_state(NBTSessionState::Reserved);
             }
             NBTSessionState::Reserved => {
-                self.next_state(NBTSessionState::Length);
+                self.d.next_state(NBTSessionState::Length);
             }
             NBTSessionState::Length => {
-                self.length = self.read_u16(byte, self.length, NBTSessionState::End)
+                self.length = self.d.read_u16(byte, self.length, NBTSessionState::End)
             }
             NBTSessionState::End => match self.get_payload() {
                 Some(pay) => pay.parse(byte),
@@ -214,8 +194,7 @@ enum SMB1HeaderState {
 #[derive(Debug, Clone)]
 struct SMB1Header {
     // DISSECTION
-    state: SMB1HeaderState,
-    i: usize,
+    d: PacketDissector<SMB1HeaderState>,
     // STRUCT
     start: [u8; 4],
     command: u8,
@@ -232,25 +211,9 @@ struct SMB1Header {
 }
 
 impl Packet for SMB1Header {
-    type PacketState = SMB1HeaderState;
-
-    fn i(&self) -> usize {
-        self.i
-    }
-    fn set_i(&mut self, i: usize) {
-        self.i = i;
-    }
-    fn state(&self) -> Self::PacketState {
-        self.state
-    }
-    fn set_state(&mut self, state: Self::PacketState) {
-        self.state = state;
-    }
-
     fn new() -> SMB1Header {
         Self {
-            state: SMB1HeaderState::Start,
-            i: 0,
+            d: PacketDissector::new(SMB1HeaderState::Start),
             start: [0; 4],
             command: 0,
             status: 0,
@@ -267,50 +230,55 @@ impl Packet for SMB1Header {
     }
 
     fn parse(&mut self, byte: &u8) {
-        match self.state {
+        match self.d.state {
             SMB1HeaderState::Start => {
-                self.start[self.i] = *byte;
-                self.i += 1;
-                self.next_state_when_i_reaches(SMB1HeaderState::Command, 4);
+                self.start[self.d.i] = *byte;
+                self.d.i += 1;
+                self.d
+                    .next_state_when_i_reaches(SMB1HeaderState::Command, 4);
             }
             SMB1HeaderState::Command => {
                 self.command = *byte;
-                self.next_state(SMB1HeaderState::Status);
+                self.d.next_state(SMB1HeaderState::Status);
             }
             SMB1HeaderState::Status => {
-                self.status = self.read_ule32(byte, self.status, SMB1HeaderState::Flags);
+                self.status = self.d.read_ule32(byte, self.status, SMB1HeaderState::Flags);
             }
             SMB1HeaderState::Flags => {
                 self.flags = *byte;
-                self.next_state(SMB1HeaderState::Flags2);
+                self.d.next_state(SMB1HeaderState::Flags2);
             }
             SMB1HeaderState::Flags2 => {
-                self.flags2 = self.read_ule16(byte, self.flags2, SMB1HeaderState::PIDHigh);
+                self.flags2 = self
+                    .d
+                    .read_ule16(byte, self.flags2, SMB1HeaderState::PIDHigh);
             }
             SMB1HeaderState::PIDHigh => {
                 self.pid_high =
-                    self.read_ule16(byte, self.pid_high, SMB1HeaderState::SecuritySignature);
+                    self.d
+                        .read_ule16(byte, self.pid_high, SMB1HeaderState::SecuritySignature);
             }
             SMB1HeaderState::SecuritySignature => {
-                self.security_signature[self.i] = *byte;
-                self.i += 1;
-                self.next_state_when_i_reaches(SMB1HeaderState::Reserved, 8);
+                self.security_signature[self.d.i] = *byte;
+                self.d.i += 1;
+                self.d
+                    .next_state_when_i_reaches(SMB1HeaderState::Reserved, 8);
             }
             SMB1HeaderState::Reserved => {
-                self.i += 1;
-                self.next_state_when_i_reaches(SMB1HeaderState::TID, 2);
+                self.d.i += 1;
+                self.d.next_state_when_i_reaches(SMB1HeaderState::TID, 2);
             }
             SMB1HeaderState::TID => {
-                self.tid = self.read_ule16(byte, self.tid, SMB1HeaderState::PIDLow);
+                self.tid = self.d.read_ule16(byte, self.tid, SMB1HeaderState::PIDLow);
             }
             SMB1HeaderState::PIDLow => {
-                self.pid_low = self.read_ule16(byte, self.pid_low, SMB1HeaderState::UID);
+                self.pid_low = self.d.read_ule16(byte, self.pid_low, SMB1HeaderState::UID);
             }
             SMB1HeaderState::UID => {
-                self.uid = self.read_ule16(byte, self.uid, SMB1HeaderState::MID);
+                self.uid = self.d.read_ule16(byte, self.uid, SMB1HeaderState::MID);
             }
             SMB1HeaderState::MID => {
-                self.mid = self.read_ule16(byte, self.mid, SMB1HeaderState::End);
+                self.mid = self.d.read_ule16(byte, self.mid, SMB1HeaderState::End);
             }
             SMB1HeaderState::End => match self.get_payload() {
                 Some(pay) => pay.parse(byte),
@@ -380,8 +348,7 @@ enum SMB1NegotiateRequestState {
 #[derive(Debug, Clone)]
 struct SMB1NegotiateRequest {
     // DISSECTION
-    state: SMB1NegotiateRequestState,
-    i: usize,
+    d: PacketDissector<SMB1NegotiateRequestState>,
     _tmp_dialect: Option<SMB1Dialect>,
     // STRUCT
     word_count: u8,
@@ -390,25 +357,9 @@ struct SMB1NegotiateRequest {
 }
 
 impl Packet for SMB1NegotiateRequest {
-    type PacketState = SMB1NegotiateRequestState;
-
-    fn i(&self) -> usize {
-        self.i
-    }
-    fn set_i(&mut self, i: usize) {
-        self.i = i;
-    }
-    fn state(&self) -> Self::PacketState {
-        self.state
-    }
-    fn set_state(&mut self, state: Self::PacketState) {
-        self.state = state;
-    }
-
     fn new() -> SMB1NegotiateRequest {
         Self {
-            state: SMB1NegotiateRequestState::WordCount,
-            i: 0,
+            d: PacketDissector::new(SMB1NegotiateRequestState::WordCount),
             _tmp_dialect: None,
             word_count: 0,
             byte_count: 0,
@@ -417,24 +368,25 @@ impl Packet for SMB1NegotiateRequest {
     }
 
     fn parse(&mut self, byte: &u8) {
-        match self.state {
+        match self.d.state {
             SMB1NegotiateRequestState::WordCount => {
                 self.word_count = *byte;
-                self.next_state(SMB1NegotiateRequestState::ByteCount);
+                self.d.next_state(SMB1NegotiateRequestState::ByteCount);
             }
             SMB1NegotiateRequestState::ByteCount => {
                 self.byte_count =
-                    self.read_ule16(byte, self.byte_count, SMB1NegotiateRequestState::Dialects);
+                    self.d
+                        .read_ule16(byte, self.byte_count, SMB1NegotiateRequestState::Dialects);
             }
             SMB1NegotiateRequestState::Dialects => {
-                self.i += 1;
+                self.d.i += 1;
                 match self._tmp_dialect.as_mut() {
                     Some(dial) => {
                         if *byte == 0 {
                             // Final nul byte: dialect is finished
                             self.dialects.push(dial.clone());
                             self._tmp_dialect = None;
-                            self.next_state_when_i_reaches(
+                            self.d.next_state_when_i_reaches(
                                 SMB1NegotiateRequestState::End,
                                 self.byte_count as usize,
                             );
@@ -454,42 +406,8 @@ impl Packet for SMB1NegotiateRequest {
         }
     }
 
-    // fn new(data: &[u8]) -> Option<Self> {
-    //     if data.len() < 15 {
-    //         return None;
-    //     }
-    //     let word_count = data[0];
-    //     let byte_count = LittleEndian::read_u16(&data[1..3]);
-    //     let mut dialects = Vec::new();
-    //     let mut i: usize = 3;
-    //     while i < 3 + byte_count as usize {
-    //         if i + 1 > data.len() {
-    //             break;
-    //         };
-    //         // dialect_string is a string that ends with a \0 char
-    //         let string_term = match data[i + 1..].iter().position(|&x| x == b'\0') {
-    //             Some(x) => x,
-    //             None => break,
-    //         };
-    //         let dialect_string = match std::str::from_utf8(&data[i + 1..i + 1 + string_term]) {
-    //             Ok(x) => x,
-    //             _ => break,
-    //         };
-    //         dialects.push(SMB1Dialect {
-    //             buffer_format: data[i],
-    //             dialect_string: String::from(dialect_string),
-    //         });
-    //         i += 2 + string_term;
-    //     }
-    //     Some(SMB1NegotiateRequest {
-    //         word_count,
-    //         byte_count,
-    //         dialects,
-    //     })
-    // }
-
     fn repl(&self) -> Option<Vec<u8>> {
-        if !matches!(self.state, SMB1NegotiateRequestState::End) {
+        if !matches!(self.d.state, SMB1NegotiateRequestState::End) {
             return None;
         }
         let mut resp: Vec<u8> = Vec::new();
@@ -595,8 +513,7 @@ enum SMB2HeaderState {
 #[derive(Debug, Clone)]
 struct SMB2Header {
     // DISSECTION
-    state: SMB2HeaderState,
-    i: usize,
+    d: PacketDissector<SMB2HeaderState>,
     // STRUCT
     start: [u8; 4],
     structure_size: u16,
@@ -615,25 +532,9 @@ struct SMB2Header {
 }
 
 impl Packet for SMB2Header {
-    type PacketState = SMB2HeaderState;
-
-    fn i(&self) -> usize {
-        self.i
-    }
-    fn set_i(&mut self, i: usize) {
-        self.i = i;
-    }
-    fn state(&self) -> Self::PacketState {
-        self.state
-    }
-    fn set_state(&mut self, state: Self::PacketState) {
-        self.state = state;
-    }
-
     fn new() -> SMB2Header {
         SMB2Header {
-            state: SMB2HeaderState::Start,
-            i: 0,
+            d: PacketDissector::new(SMB2HeaderState::Start),
             start: [0; 4],
             structure_size: 0,
             credit_charge: 0,
@@ -651,52 +552,67 @@ impl Packet for SMB2Header {
     }
 
     fn parse(&mut self, byte: &u8) {
-        match self.state {
+        match self.d.state {
             SMB2HeaderState::Start => {
-                self.start[self.i] = *byte;
-                self.i += 1;
-                self.next_state_when_i_reaches(SMB2HeaderState::StructureSize, 4);
+                self.start[self.d.i] = *byte;
+                self.d.i += 1;
+                self.d
+                    .next_state_when_i_reaches(SMB2HeaderState::StructureSize, 4);
             }
             SMB2HeaderState::StructureSize => {
                 self.structure_size =
-                    self.read_ule16(byte, self.structure_size, SMB2HeaderState::CreditsCharge)
+                    self.d
+                        .read_ule16(byte, self.structure_size, SMB2HeaderState::CreditsCharge)
             }
             SMB2HeaderState::CreditsCharge => {
                 self.credit_charge =
-                    self.read_ule16(byte, self.credit_charge, SMB2HeaderState::Status)
+                    self.d
+                        .read_ule16(byte, self.credit_charge, SMB2HeaderState::Status)
             }
             SMB2HeaderState::Status => {
-                self.status = self.read_ule32(byte, self.status, SMB2HeaderState::Command)
+                self.status = self
+                    .d
+                    .read_ule32(byte, self.status, SMB2HeaderState::Command)
             }
             SMB2HeaderState::Command => {
                 self.command =
-                    self.read_ule16(byte, self.command, SMB2HeaderState::CreditsRequested)
+                    self.d
+                        .read_ule16(byte, self.command, SMB2HeaderState::CreditsRequested)
             }
             SMB2HeaderState::CreditsRequested => {
                 self.credits_requested =
-                    self.read_ule16(byte, self.credits_requested, SMB2HeaderState::Flags)
+                    self.d
+                        .read_ule16(byte, self.credits_requested, SMB2HeaderState::Flags)
             }
             SMB2HeaderState::Flags => {
-                self.flags = self.read_ule32(byte, self.flags, SMB2HeaderState::NextCommand)
+                self.flags = self
+                    .d
+                    .read_ule32(byte, self.flags, SMB2HeaderState::NextCommand)
             }
             SMB2HeaderState::NextCommand => {
                 self.next_command =
-                    self.read_ule32(byte, self.next_command, SMB2HeaderState::MessageId)
+                    self.d
+                        .read_ule32(byte, self.next_command, SMB2HeaderState::MessageId)
             }
             SMB2HeaderState::MessageId => {
-                self.message_id = self.read_ule64(byte, self.message_id, SMB2HeaderState::AsyncId)
+                self.message_id = self
+                    .d
+                    .read_ule64(byte, self.message_id, SMB2HeaderState::AsyncId)
             }
             SMB2HeaderState::AsyncId => {
-                self.async_id = self.read_ule64(byte, self.async_id, SMB2HeaderState::SessionId)
+                self.async_id = self
+                    .d
+                    .read_ule64(byte, self.async_id, SMB2HeaderState::SessionId)
             }
             SMB2HeaderState::SessionId => {
                 self.session_id =
-                    self.read_ule64(byte, self.session_id, SMB2HeaderState::SecuritySignature)
+                    self.d
+                        .read_ule64(byte, self.session_id, SMB2HeaderState::SecuritySignature)
             }
             SMB2HeaderState::SecuritySignature => {
-                self.security_signature[self.i] = *byte;
-                self.i += 1;
-                self.next_state_when_i_reaches(SMB2HeaderState::End, 16);
+                self.security_signature[self.d.i] = *byte;
+                self.d.i += 1;
+                self.d.next_state_when_i_reaches(SMB2HeaderState::End, 16);
             }
             SMB2HeaderState::End => match self.get_payload() {
                 Some(pay) => pay.parse(byte),
@@ -740,10 +656,10 @@ impl SMB2Header {
                 // Negotiate
                 SMB2Payload::NegotiateRequest(SMB2NegotiateRequest::new())
             }
-            // 0x0001 => {
-            //     // Setup
-            //     SMB2Payload::SetupRequest(SMB2SetupRequest::new())
-            // }
+            0x0001 => {
+                // Setup
+                SMB2Payload::SetupRequest(SMB2SetupRequest::new())
+            }
             _ => None?,
         });
         self.payload.as_mut()
@@ -766,8 +682,7 @@ enum SMB2NegotiateRequestState {
 #[derive(Debug, Clone)]
 struct SMB2NegotiateRequest {
     // DISSECTION
-    state: SMB2NegotiateRequestState,
-    i: usize,
+    d: PacketDissector<SMB2NegotiateRequestState>,
     _tmp_dialect: u16,
     // STRUCT
     structure_size: u16,
@@ -780,25 +695,9 @@ struct SMB2NegotiateRequest {
 const EPOCH_1601: u64 = 11644473600;
 
 impl Packet for SMB2NegotiateRequest {
-    type PacketState = SMB2NegotiateRequestState;
-
-    fn i(&self) -> usize {
-        self.i
-    }
-    fn set_i(&mut self, i: usize) {
-        self.i = i;
-    }
-    fn state(&self) -> Self::PacketState {
-        self.state
-    }
-    fn set_state(&mut self, state: Self::PacketState) {
-        self.state = state;
-    }
-
     fn new() -> Self {
         SMB2NegotiateRequest {
-            state: SMB2NegotiateRequestState::StructureSize,
-            i: 0,
+            d: PacketDissector::new(SMB2NegotiateRequestState::StructureSize),
             _tmp_dialect: 0,
             structure_size: 0,
             dialect_count: 0,
@@ -810,61 +709,64 @@ impl Packet for SMB2NegotiateRequest {
     }
 
     fn parse(&mut self, byte: &u8) {
-        match self.state {
+        match self.d.state {
             SMB2NegotiateRequestState::StructureSize => {
-                self.structure_size = self.read_ule16(
+                self.structure_size = self.d.read_ule16(
                     byte,
                     self.structure_size,
                     SMB2NegotiateRequestState::DialectCount,
                 );
             }
             SMB2NegotiateRequestState::DialectCount => {
-                self.dialect_count = self.read_ule16(
+                self.dialect_count = self.d.read_ule16(
                     byte,
                     self.dialect_count,
                     SMB2NegotiateRequestState::SecurityMode,
                 );
             }
             SMB2NegotiateRequestState::SecurityMode => {
-                self.security_mode = self.read_ule16(
+                self.security_mode = self.d.read_ule16(
                     byte,
                     self.security_mode,
                     SMB2NegotiateRequestState::Reserved,
                 );
             }
             SMB2NegotiateRequestState::Reserved => {
-                self.i += 1;
-                self.next_state_when_i_reaches(SMB2NegotiateRequestState::Capabilities, 2);
+                self.d.i += 1;
+                self.d
+                    .next_state_when_i_reaches(SMB2NegotiateRequestState::Capabilities, 2);
             }
             SMB2NegotiateRequestState::Capabilities => {
-                self.capabilities = self.read_ule32(
+                self.capabilities = self.d.read_ule32(
                     byte,
                     self.capabilities,
                     SMB2NegotiateRequestState::ClientGUID,
                 );
             }
             SMB2NegotiateRequestState::ClientGUID => {
-                self.client_guid[self.i] = *byte;
-                self.i += 1;
-                self.next_state_when_i_reaches(
+                self.client_guid[self.d.i] = *byte;
+                self.d.i += 1;
+                self.d.next_state_when_i_reaches(
                     SMB2NegotiateRequestState::NegotiateAndReserved2,
                     16,
                 );
             }
             SMB2NegotiateRequestState::NegotiateAndReserved2 => {
-                self.i += 1;
-                self.next_state_when_i_reaches(SMB2NegotiateRequestState::Dialects, 8);
+                self.d.i += 1;
+                self.d
+                    .next_state_when_i_reaches(SMB2NegotiateRequestState::Dialects, 8);
             }
             SMB2NegotiateRequestState::Dialects => {
                 self._tmp_dialect =
-                    self.read_ule16(byte, self._tmp_dialect, SMB2NegotiateRequestState::Dialects);
-                if self.i == 0 {
+                    self.d
+                        .read_ule16(byte, self._tmp_dialect, SMB2NegotiateRequestState::Dialects);
+                if self.d.i == 0 {
                     // Add to dialects list when finished
                     self.dialects.insert(self._tmp_dialect);
                     self._tmp_dialect = 0;
                     // Check if dialects list is finished
                     if self.dialects.len() == self.dialect_count as usize {
-                        self.state = SMB2NegotiateRequestState::End;
+                        self.d.state = SMB2NegotiateRequestState::End;
                     }
                 }
             }
@@ -874,7 +776,7 @@ impl Packet for SMB2NegotiateRequest {
         }
     }
     fn repl(&self) -> Option<Vec<u8>> {
-        if !matches!(self.state, SMB2NegotiateRequestState::End) {
+        if !matches!(self.d.state, SMB2NegotiateRequestState::End) {
             return None;
         }
         let mut resp: Vec<u8> = Vec::new();
@@ -912,41 +814,131 @@ impl Packet for SMB2NegotiateRequest {
         resp.extend_from_slice(&0x80_u16.to_le_bytes()); // SecurityBloboffset
         resp.extend_from_slice(&(SECURITY_BLOB.len() as u16).to_le_bytes()); // SecurityBlobLength
         resp.extend_from_slice(&0x0_u32.to_le_bytes()); // NegotiateContextOffset
-        resp.extend_from_slice(SECURITY_BLOB); // SecurityBlob
+        resp.extend_from_slice(SECURITY_BLOB); // SecurityBlobw
         warn!("SMB2 Negotiate-Protocol-Reply ({})", dialect_name);
         Some(resp)
     }
 }
 
-// #[derive(Debug, Clone)]
-// struct SMB2SetupRequest {}
-// impl SMB2SetupRequest {
-//     fn new() -> Self {
-//         SMB2SetupRequest {}
-//     }
+#[derive(Debug, Clone, Copy)]
+enum SMB2SetupRequestState {
+    StructureSize,
+    Flags,
+    SecurityMode,
+    Capabilities,
+    Channel,
+    SecurityBufferOffset,
+    SecurityLen,
+    PreviousSessionId,
+    SecurityBlob,
+    End,
+}
 
-//     fn repl(&self) -> Option<Vec<u8>> {
-//         (None, None)
-//     }
-// }
+#[derive(Debug, Clone)]
+struct SMB2SetupRequest {
+    // DISSECTION
+    d: PacketDissector<SMB2SetupRequestState>,
+    // STRUCT
+    structure_size: u16,
+    flags: u8,
+    security_mode: u8,
+    capabilities: u32,
+    channel: u32,
+    security_buffer_offset: u16,
+    security_len: u16,
+    previous_session_id: u64,
+}
+impl Packet for SMB2SetupRequest {
+    fn new() -> Self {
+        SMB2SetupRequest {
+            d: PacketDissector::new(SMB2SetupRequestState::StructureSize),
+            structure_size: 0,
+            flags: 0,
+            security_mode: 0,
+            capabilities: 0,
+            channel: 0,
+            security_buffer_offset: 0,
+            security_len: 0,
+            previous_session_id: 0,
+        }
+    }
+
+    fn parse(&mut self, byte: &u8) {
+        match self.d.state {
+            SMB2SetupRequestState::StructureSize => {
+                self.structure_size =
+                    self.d
+                        .read_ule16(byte, self.structure_size, SMB2SetupRequestState::Flags);
+            }
+            SMB2SetupRequestState::Flags => {
+                self.flags = *byte;
+                self.d.next_state(SMB2SetupRequestState::SecurityMode);
+            }
+            SMB2SetupRequestState::SecurityMode => {
+                self.security_mode = *byte;
+                self.d.next_state(SMB2SetupRequestState::Capabilities);
+            }
+            SMB2SetupRequestState::Capabilities => {
+                self.capabilities =
+                    self.d
+                        .read_ule32(byte, self.capabilities, SMB2SetupRequestState::Channel);
+            }
+            SMB2SetupRequestState::Channel => {
+                self.channel = self.d.read_ule32(
+                    byte,
+                    self.channel,
+                    SMB2SetupRequestState::SecurityBufferOffset,
+                );
+            }
+            SMB2SetupRequestState::SecurityBufferOffset => {
+                self.security_buffer_offset = self.d.read_ule16(
+                    byte,
+                    self.security_buffer_offset,
+                    SMB2SetupRequestState::SecurityLen,
+                );
+            }
+            SMB2SetupRequestState::SecurityLen => {
+                self.security_len = self.d.read_ule16(
+                    byte,
+                    self.security_len,
+                    SMB2SetupRequestState::PreviousSessionId,
+                );
+            }
+            SMB2SetupRequestState::PreviousSessionId => {
+                self.previous_session_id =
+                    self.d
+                        .read_ule64(byte, self.previous_session_id, SMB2SetupRequestState::SecurityBlob);
+            }
+            SMB2SetupRequestState::SecurityBlob => {
+                // TODO ? Not super useful TBH, also this is ASN.1 :///
+                self.d.next_state(SMB2SetupRequestState::End);
+            },
+            SMB2SetupRequestState::End => {}
+        }
+    }
+
+    fn repl(&self) -> Option<Vec<u8>> {
+        None
+    }
+}
 
 #[derive(Debug, Clone)]
 enum SMB2Payload {
     NegotiateRequest(SMB2NegotiateRequest),
-    // SetupRequest(SMB2SetupRequest),
+    SetupRequest(SMB2SetupRequest),
 }
 
 impl SMB2Payload {
     fn repl(&self) -> Option<Vec<u8>> {
         match self {
             SMB2Payload::NegotiateRequest(x) => x.repl(),
-            // SMB2Payload::SetupRequest(x) => x.repl(),
+            SMB2Payload::SetupRequest(x) => x.repl(),
         }
     }
     fn parse(&mut self, byte: &u8) {
         match self {
             SMB2Payload::NegotiateRequest(x) => x.parse(byte),
-            // SMB2Payload::SetupRequest(x) => x.repl(),
+            SMB2Payload::SetupRequest(x) => x.parse(byte),
         }
     }
 }
@@ -1097,6 +1089,7 @@ mod tests {
         assert_eq!(smb2.security_signature, [0; 16]);
         let neg_request = match smb2.payload.expect("Error while reading payload") {
             SMB2Payload::NegotiateRequest(x) => x,
+            _ => panic!("Invalid payload type"),
         };
         assert_eq!(neg_request.structure_size, 36);
         assert_eq!(neg_request.dialect_count, 8);
