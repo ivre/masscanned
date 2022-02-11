@@ -35,7 +35,7 @@ pub struct ClientInfoSrcDst<A: Hash + PartialEq + Clone> {
  * - source and dest. transport port
  * - syn cookie
  **/
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct ClientInfo {
     pub mac: ClientInfoSrcDst<MacAddr>,
     pub ip: ClientInfoSrcDst<IpAddr>,
@@ -62,30 +62,6 @@ impl ClientInfo {
             },
             cookie: None,
         }
-    }
-}
-
-impl PartialEq for ClientInfo {
-    fn eq(&self, other: &Self) -> bool {
-        if self.mac != other.mac {
-            return false;
-        }
-        if self.ip != other.ip {
-            return false;
-        }
-        if self.transport != other.transport {
-            return false;
-        }
-        if self.port != other.port {
-            return false;
-        }
-        /* this next case should never occur with TCP and UDP,
-         * but this implementation tries to remain transport-protocol-agnostic
-         **/
-        if self.cookie != other.cookie {
-            return false;
-        }
-        true
     }
 }
 
