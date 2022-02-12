@@ -17,21 +17,21 @@
 use pnet::packet::{
     arp::{ArpPacket, MutableArpPacket},
     ethernet::{EthernetPacket, MutableEthernetPacket},
-    ipv4::{Ipv4Packet, MutableIpv4Packet},
-    ipv6::{Ipv6Packet, MutableIpv6Packet},
     icmp::{IcmpPacket, MutableIcmpPacket},
     icmpv6::{Icmpv6Packet, MutableIcmpv6Packet},
-    tcp::{TcpPacket, MutableTcpPacket},
-    udp::{UdpPacket, MutableUdpPacket},
+    ipv4::{Ipv4Packet, MutableIpv4Packet},
+    ipv6::{Ipv6Packet, MutableIpv6Packet},
+    tcp::{MutableTcpPacket, TcpPacket},
+    udp::{MutableUdpPacket, UdpPacket},
 };
 
 use crate::client::ClientInfo;
 
-mod meta;
 mod console;
+mod meta;
 
-pub use meta::MetaLogger;
 pub use console::ConsoleLogger;
+pub use meta::MetaLogger;
 
 pub trait Logger {
     fn init(&self);

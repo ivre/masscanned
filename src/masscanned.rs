@@ -35,8 +35,8 @@ use pnet::{
     util::MacAddr,
 };
 
-use crate::utils::IpAddrParser;
 use crate::logger::{ConsoleLogger, MetaLogger};
+use crate::utils::IpAddrParser;
 
 mod client;
 mod layer_2;

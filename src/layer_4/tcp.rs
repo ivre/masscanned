@@ -31,7 +31,7 @@ pub fn repl<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableTcpPacket<'b>> {
-    debug!("receiving TCP packet: {:?}", tcp_req);
+    masscanned.log.tcp_recv(tcp_req, client_info);
     /* Fill client info with source and dest. TCP port */
     client_info.port.src = Some(tcp_req.get_source());
     client_info.port.dst = Some(tcp_req.get_destination());
@@ -50,7 +50,7 @@ pub fn repl<'a, 'b>(
             /* Compute syncookie */
             if let Ok(cookie) = synackcookie::generate(&client_info, &masscanned.synack_key) {
                 if cookie != ackno {
-                    info!("PSH-ACK ignored: synackcookie not valid");
+                    masscanned.log.tcp_drop(tcp_req, client_info);
                     return None;
                 }
                 client_info.cookie = Some(cookie);
@@ -76,10 +76,12 @@ pub fn repl<'a, 'b>(
         /* Answer to ACK: nothing */
         flags if flags == TcpFlags::ACK => {
             /* answer here when server needs to speak first after handshake */
+            masscanned.log.tcp_drop(tcp_req, client_info);
             return None;
         }
         /* Answer to RST: nothing */
         flags if flags == TcpFlags::RST => {
+            masscanned.log.tcp_drop(tcp_req, client_info);
             return None;
         }
         /* Answer to FIN,ACK with FIN,ACK */
@@ -101,10 +103,9 @@ pub fn repl<'a, 'b>(
             tcp_repl.set_sequence(
                 synackcookie::generate(&client_info, &masscanned.synack_key).unwrap(),
             );
-            warn!("SYN-ACK to ACK on port {}", tcp_req.get_destination());
         }
         _ => {
-            info!("TCP flag not handled: {}", tcp_req.get_flags());
+            masscanned.log.tcp_drop(tcp_req, client_info);
             return None;
         }
     }
@@ -115,7 +116,7 @@ pub fn repl<'a, 'b>(
     /* Set TCP headers */
     tcp_repl.set_data_offset(5);
     tcp_repl.set_window(65535);
-    debug!("sending TCP packet: {:?}", tcp_repl);
+    masscanned.log.tcp_send(&tcp_repl, client_info);
     Some(tcp_repl)
 }
 
