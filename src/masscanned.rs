@@ -35,12 +35,14 @@ use pnet::{
     util::MacAddr,
 };
 
-use crate::utils::{ConsoleLogger, IpAddrParser, MetaLogger};
+use crate::utils::IpAddrParser;
+use crate::logger::{ConsoleLogger, MetaLogger};
 
 mod client;
 mod layer_2;
 mod layer_3;
 mod layer_4;
+mod logger;
 mod proto;
 mod smack;
 mod synackcookie;
