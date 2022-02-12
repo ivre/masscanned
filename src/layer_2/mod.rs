@@ -104,6 +104,9 @@ pub fn reply<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableEthernetPacket<'b>> {
+    /* Fill client information for this packet with MAC addresses (src and dst) */
+    client_info.mac.src = Some(eth_req.get_source());
+    client_info.mac.dst = Some(eth_req.get_destination());
     masscanned.log.eth_recv(eth_req, &client_info);
     let mut eth_repl;
     /* First, check if the destination MAC address is one of those masscanned
@@ -116,9 +119,6 @@ pub fn reply<'a, 'b>(
         masscanned.log.eth_drop(eth_req, &client_info);
         return None;
     }
-    /* Fill client information for this packet with MAC addresses (src and dst) */
-    client_info.mac.src = Some(eth_req.get_source());
-    client_info.mac.dst = Some(eth_req.get_destination());
     /* Build next layer payload for answer depending on the incoming packet */
     match eth_req.get_ethertype() {
         /* Construct answer to ARP request */

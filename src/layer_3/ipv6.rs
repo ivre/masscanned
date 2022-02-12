@@ -35,7 +35,10 @@ pub fn repl<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableIpv6Packet<'b>> {
-    debug!("receiving IPv6 packet: {:?}", ip_req);
+    /* Fill client info with source and dest. IP address */
+    client_info.ip.src = Some(IpAddr::V6(ip_req.get_source()));
+    client_info.ip.dst = Some(IpAddr::V6(ip_req.get_destination()));
+    masscanned.log.ipv6_recv(ip_req, client_info);
     let src = ip_req.get_source();
     let mut dst = ip_req.get_destination();
     /* If masscanned is configured with IP addresses, check that
@@ -46,7 +49,7 @@ pub fn repl<'a, 'b>(
         if !ip_addr_list.contains(&IpAddr::V6(dst))
             && ip_req.get_next_header() != IpNextHeaderProtocols::Icmpv6
         {
-            info!("Ignoring IP packet from {} for {}", &src, &dst);
+            masscanned.log.ipv6_drop(ip_req, client_info);
             return None;
         }
     }
@@ -84,6 +87,7 @@ pub fn repl<'a, 'b>(
                     ip_repl.set_hop_limit(255);
                 };
             } else {
+                masscanned.log.ipv6_drop(ip_req, client_info);
                 return None;
             }
         }
@@ -108,6 +112,7 @@ pub fn repl<'a, 'b>(
                 ip_repl.set_payload_length(tcp_len as u16);
                 ip_repl.set_payload(&tcp_repl.packet());
             } else {
+                masscanned.log.ipv6_drop(ip_req, client_info);
                 return None;
             }
         }
@@ -132,15 +137,13 @@ pub fn repl<'a, 'b>(
                 ip_repl.set_payload_length(udp_len as u16);
                 ip_repl.set_payload(&udp_repl.packet());
             } else {
+                masscanned.log.ipv6_drop(ip_req, client_info);
                 return None;
             }
         }
         /* Other protocols are not handled (yet) - dropping */
         _ => {
-            info!(
-                "IPv6 upper layer not handled: {:?}",
-                ip_req.get_next_header()
-            );
+            masscanned.log.ipv6_drop(ip_req, client_info);
             return None;
         }
     };
@@ -153,7 +156,7 @@ pub fn repl<'a, 'b>(
     /* Set packet source and dest. */
     ip_repl.set_source(dst);
     ip_repl.set_destination(src);
-    debug!("sending IPv6 packet: {:?}", ip_repl);
+    masscanned.log.ipv6_send(&ip_repl, client_info);
     Some(ip_repl)
 }
 
