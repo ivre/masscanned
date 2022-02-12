@@ -114,6 +114,11 @@ impl Logger for ConsoleLogger {
         self.prolog("arp", "init", true);
         self.prolog("eth", "init", true);
         self.prolog("ipv4", "init", true);
+        self.prolog("ipv6", "init", true);
+        self.prolog("icmpv4", "init", true);
+        self.prolog("icmpv6", "init", true);
+        self.prolog("tcp", "init", true);
+        self.prolog("udp", "init", true);
     }
     /* ARP */
     fn arp_enabled(&self) -> bool {

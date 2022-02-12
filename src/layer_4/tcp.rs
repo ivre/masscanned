@@ -136,6 +136,7 @@ mod tests {
             ip_addresses: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
+            log: MetaLogger::new(),
         };
         /* reference */
         let ip_src = IpAddr::V4(Ipv4Addr::new(27, 198, 143, 1));
