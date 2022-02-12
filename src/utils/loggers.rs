@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
+use std::time::SystemTime;
+
 use pnet::packet::{
     arp::{ArpPacket, MutableArpPacket},
     ethernet::{EthernetPacket, MutableEthernetPacket},
@@ -29,10 +31,8 @@ pub trait Logger {
         true
     }
     fn arp_recv(&self, _p: &ArpPacket) {}
-    fn arp_recv_whohas(&self, _p: &ArpPacket) {}
     fn arp_drop(&self, _p: &ArpPacket) {}
     fn arp_send(&self, _p: &MutableArpPacket) {}
-    fn arp_send_isat(&self, _p: &MutableArpPacket) {}
     /* Ethernet */
     fn eth_enabled(&self) -> bool {
         true
@@ -54,12 +54,22 @@ impl ConsoleLogger {
             eth: true,
         }
     }
+    fn prolog(&self, proto: &str, verb: &str, crlf: bool) {
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+        print!("{}.{}\t{}\t{}{}",
+            now.as_secs(),
+            now.subsec_millis(),
+            proto,
+            verb,
+            if crlf { "\n" } else { "\t" },
+          );
+    }
 }
 
 impl Logger for ConsoleLogger {
     fn init(&self) {
-        println!("arp::init");
-        println!("eth::init");
+        self.prolog("arp", "init", true);
+        self.prolog("eth", "init", true);
     }
     fn arp_enabled(&self) -> bool {
         self.arp
@@ -67,42 +77,61 @@ impl Logger for ConsoleLogger {
     fn eth_enabled(&self) -> bool {
         self.eth
     }
-    fn arp_recv_whohas(&self, p: &ArpPacket) {
+    fn arp_recv(&self, p: &ArpPacket) {
+        self.prolog("arp", "recv", false);
         println!(
-            "arp::recv\twho-has\t{:}\t{:}\t{:}",
-            p.get_sender_hw_addr(),
-            p.get_target_hw_addr(),
-            p.get_target_proto_addr()
-        );
-    }
-    fn arp_send_isat(&self, p: &MutableArpPacket) {
-        println!(
-            "arp::send\tis-at\t{:}\t{:}\t{:}\t{:}",
+            "{:?}\t{:}\t{:}\t{:}\t{:}",
+            p.get_operation(),
             p.get_sender_hw_addr(),
             p.get_sender_proto_addr(),
             p.get_target_hw_addr(),
-            p.get_target_proto_addr()
+            p.get_target_proto_addr(),
+        );
+    }
+    fn arp_send(&self, p: &MutableArpPacket) {
+        self.prolog("arp", "send", false);
+        println!(
+            "{:?}\t{:}\t{:}\t{:}\t{:}",
+            p.get_operation(),
+            p.get_target_hw_addr(),
+            p.get_target_proto_addr(),
+            p.get_sender_hw_addr(),
+            p.get_sender_proto_addr(),
+        );
+    }
+    fn arp_drop(&self, p: &ArpPacket) {
+        self.prolog("arp", "drop", false);
+        println!(
+            "{:?}\t{:}\t{:}\t{:}\t{:}",
+            p.get_operation(),
+            p.get_target_hw_addr(),
+            p.get_target_proto_addr(),
+            p.get_sender_hw_addr(),
+            p.get_sender_proto_addr(),
         );
     }
     fn eth_recv(&self, p: &EthernetPacket, _c: &ClientInfo) {
+        self.prolog("eth", "recv", false);
         println!(
-            "eth::recv\t{:}\t{:}\t{:}",
+            "{:}\t{:}\t{:}",
             p.get_ethertype(),
             p.get_source(),
             p.get_destination(),
         );
     }
     fn eth_drop(&self, p: &EthernetPacket, _c: &ClientInfo) {
+        self.prolog("eth", "drop", false);
         println!(
-            "eth::drop\t{:}\t{:}\t{:}",
+            "{:}\t{:}\t{:}",
             p.get_ethertype(),
             p.get_source(),
             p.get_destination(),
         );
     }
     fn eth_send(&self, p: &MutableEthernetPacket, _c: &ClientInfo) {
+        self.prolog("eth", "send", false);
         println!(
-            "eth::send\t{:}\t{:}\t{:}",
+            "{:}\t{:}\t{:}",
             p.get_ethertype(),
             p.get_destination(),
             p.get_source(),
@@ -135,13 +164,6 @@ impl MetaLogger {
             }
         }
     }
-    pub fn arp_recv_whohas(&self, p: &ArpPacket) {
-        for l in &self.loggers {
-            if l.arp_enabled() {
-                l.arp_recv_whohas(p);
-            }
-        }
-    }
     pub fn arp_drop(&self, p: &ArpPacket) {
         for l in &self.loggers {
             if l.arp_enabled() {
@@ -153,13 +175,6 @@ impl MetaLogger {
         for l in &self.loggers {
             if l.arp_enabled() {
                 l.arp_send(p);
-            }
-        }
-    }
-    pub fn arp_send_isat(&self, p: &MutableArpPacket) {
-        for l in &self.loggers {
-            if l.arp_enabled() {
-                l.arp_send_isat(p);
             }
         }
     }
