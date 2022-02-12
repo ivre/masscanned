@@ -194,7 +194,7 @@ mod tests {
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
 
-    use crate::utils::MetaLogger;
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_eth_reply() {

@@ -413,7 +413,7 @@ mod tests {
 
     use pnet::util::MacAddr;
 
-    use crate::utils::MetaLogger;
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_proto_stun_ipv4() {

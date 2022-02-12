@@ -127,7 +127,7 @@ mod tests {
     use pnet::util::MacAddr;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-    use crate::utils::MetaLogger;
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_tcp_fin_ack() {

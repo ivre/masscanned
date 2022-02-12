@@ -168,7 +168,7 @@ mod tests {
 
     use pnet::util::MacAddr;
 
-    use crate::utils::MetaLogger;
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_ipv6_reply() {

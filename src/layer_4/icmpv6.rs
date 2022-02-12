@@ -157,7 +157,7 @@ mod tests {
     use pnet::packet::icmpv6::ndp::{MutableNeighborSolicitPacket, NeighborSolicit};
     use pnet::util::MacAddr;
 
-    use crate::utils::MetaLogger;
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_nd_na_reply() {
