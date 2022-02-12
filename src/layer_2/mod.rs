@@ -113,11 +113,7 @@ pub fn reply<'a, 'b>(
     if !get_authorized_eth_addr(&masscanned.mac, masscanned.ip_addresses)
         .contains(&eth_req.get_destination())
     {
-        info!(
-            "Ignoring Ethernet packet from {} to {}",
-            eth_req.get_source(),
-            eth_req.get_destination(),
-        );
+        masscanned.log.eth_drop(eth_req, &client_info);
         return None;
     }
     /* Fill client information for this packet with MAC addresses (src and dst) */
@@ -136,6 +132,7 @@ pub fn reply<'a, 'b>(
                 eth_repl.set_ethertype(EtherTypes::Arp);
                 eth_repl.set_payload(arp_repl.packet());
             } else {
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             }
         }
@@ -145,6 +142,7 @@ pub fn reply<'a, 'b>(
                 p
             } else {
                 warn!("error parsing IPv4 packet");
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             };
             if let Some(mut ipv4_repl) =
@@ -158,6 +156,7 @@ pub fn reply<'a, 'b>(
                 eth_repl.set_ethertype(EtherTypes::Ipv4);
                 eth_repl.set_payload(ipv4_repl.packet());
             } else {
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             }
         }
@@ -172,18 +171,20 @@ pub fn reply<'a, 'b>(
                 eth_repl.set_ethertype(EtherTypes::Ipv6);
                 eth_repl.set_payload(ipv6_repl.packet());
             } else {
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             }
         }
         /* Log & drop unknown network protocol */
         _ => {
             info!("Ethernet type not handled: {:?}", eth_req.get_ethertype());
+            masscanned.log.eth_drop(eth_req, &client_info);
             return None;
         }
     };
     eth_repl.set_source(masscanned.mac);
     eth_repl.set_destination(eth_req.get_source());
-    debug!("sending Ethernet packet: {:?}", eth_repl);
+    masscanned.log.eth_send(&eth_repl, &client_info);
     Some(eth_repl)
 }
 

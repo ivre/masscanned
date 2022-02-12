@@ -51,7 +51,7 @@ impl ConsoleLogger {
     pub fn new() -> Self {
         ConsoleLogger {
             arp: true,
-            eth: false,
+            eth: true,
         }
     }
 }
@@ -59,6 +59,7 @@ impl ConsoleLogger {
 impl Logger for ConsoleLogger {
     fn init(&self) {
         println!("arp::init");
+        println!("eth::init");
     }
     fn arp_enabled(&self) -> bool {
         self.arp
@@ -81,6 +82,30 @@ impl Logger for ConsoleLogger {
             p.get_sender_proto_addr(),
             p.get_target_hw_addr(),
             p.get_target_proto_addr()
+        );
+    }
+    fn eth_recv(&self, p: &EthernetPacket, _c: &ClientInfo) {
+        println!(
+            "eth::recv\t{:}\t{:}\t{:}",
+            p.get_ethertype(),
+            p.get_source(),
+            p.get_destination(),
+        );
+    }
+    fn eth_drop(&self, p: &EthernetPacket, _c: &ClientInfo) {
+        println!(
+            "eth::drop\t{:}\t{:}\t{:}",
+            p.get_ethertype(),
+            p.get_source(),
+            p.get_destination(),
+        );
+    }
+    fn eth_send(&self, p: &MutableEthernetPacket, _c: &ClientInfo) {
+        println!(
+            "eth::send\t{:}\t{:}\t{:}",
+            p.get_ethertype(),
+            p.get_destination(),
+            p.get_source(),
         );
     }
 }

@@ -52,7 +52,6 @@ pub fn repl<'a, 'b>(
             arp_repl.set_target_proto_addr(arp_req.get_sender_proto_addr().to_owned());
             arp_repl.set_sender_proto_addr(arp_req.get_target_proto_addr().to_owned());
             masscanned.log.arp_send_isat(&arp_repl);
-            masscanned.log.arp_send(&arp_repl);
         }
         _ => {
             info!("ARP Operation not handled: {:?}", arp_repl.get_operation());
@@ -60,6 +59,7 @@ pub fn repl<'a, 'b>(
             return None;
         }
     };
+    masscanned.log.arp_send(&arp_repl);
     Some(arp_repl)
 }
 
