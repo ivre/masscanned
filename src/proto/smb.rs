@@ -84,7 +84,7 @@ impl<T> PacketDissector<T> {
     }
 }
 
-pub trait Packet {
+pub trait MPacket {
     fn new() -> Self;
     fn repl(&self) -> Option<Vec<u8>>;
     fn parse(&mut self, byte: &u8);
@@ -109,7 +109,7 @@ enum NBTSessionState {
 }
 
 #[derive(Debug, Clone)]
-struct NBTSession<T: Packet> {
+struct NBTSession<T: MPacket> {
     // DISSECTION
     d: PacketDissector<NBTSessionState>,
     // STRUCT
@@ -118,7 +118,7 @@ struct NBTSession<T: Packet> {
     payload: Option<T>,
 }
 
-impl<T: Packet> Packet for NBTSession<T> {
+impl<T: MPacket> MPacket for NBTSession<T> {
     fn new() -> NBTSession<T> {
         Self {
             d: PacketDissector::new(NBTSessionState::NBType),
@@ -160,7 +160,7 @@ impl<T: Packet> Packet for NBTSession<T> {
     }
 }
 
-impl<T: Packet> NBTSession<T> {
+impl<T: MPacket> NBTSession<T> {
     fn get_payload(&mut self) -> Option<&mut T> {
         if self.payload.is_some() {
             return self.payload.as_mut();
@@ -210,7 +210,7 @@ struct SMB1Header {
     payload: Option<SMB1Payload>,
 }
 
-impl Packet for SMB1Header {
+impl MPacket for SMB1Header {
     fn new() -> SMB1Header {
         Self {
             d: PacketDissector::new(SMB1HeaderState::Start),
@@ -356,7 +356,7 @@ struct SMB1NegotiateRequest {
     dialects: Vec<SMB1Dialect>,
 }
 
-impl Packet for SMB1NegotiateRequest {
+impl MPacket for SMB1NegotiateRequest {
     fn new() -> SMB1NegotiateRequest {
         Self {
             d: PacketDissector::new(SMB1NegotiateRequestState::WordCount),
@@ -536,7 +536,7 @@ struct SMB2Header {
     payload: Option<SMB2Payload>,
 }
 
-impl Packet for SMB2Header {
+impl MPacket for SMB2Header {
     fn new() -> SMB2Header {
         SMB2Header {
             d: PacketDissector::new(SMB2HeaderState::Start),
@@ -699,7 +699,7 @@ struct SMB2NegotiateRequest {
 }
 const EPOCH_1601: u64 = 11644473600;
 
-impl Packet for SMB2NegotiateRequest {
+impl MPacket for SMB2NegotiateRequest {
     fn new() -> Self {
         SMB2NegotiateRequest {
             d: PacketDissector::new(SMB2NegotiateRequestState::StructureSize),
@@ -858,7 +858,7 @@ struct SMB2SetupRequest {
     security_len: u16,
     previous_session_id: u64,
 }
-impl Packet for SMB2SetupRequest {
+impl MPacket for SMB2SetupRequest {
     fn new() -> Self {
         SMB2SetupRequest {
             d: PacketDissector::new(SMB2SetupRequestState::StructureSize),
