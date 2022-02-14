@@ -17,10 +17,10 @@
 use log::*;
 use std::collections::HashSet;
 use std::convert::TryInto;
-
-use chrono;
+use std::time::SystemTime;
 
 use crate::client::ClientInfo;
+use crate::logger::MetaLogger;
 use crate::Masscanned;
 
 // NBTSession + SMB Header
@@ -37,7 +37,7 @@ const SECURITY_BLOB: &[u8; 320] = b"`\x82\x01<\x06\x06+\x06\x01\x05\x05\x02\xa0\
 ////////////
 
 /// ### PacketDissector
-/// A util class used to dissecate fields.
+/// A util class used to dissect fields.
 #[derive(Debug, Clone)]
 struct PacketDissector<T> {
     i: usize,
@@ -59,28 +59,28 @@ impl<T> PacketDissector<T> {
             self.next_state(state);
         }
     }
-    fn _read_u(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
+    fn _read_usize(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
         self.i += 1;
         self.next_state_when_i_reaches(next_state, size);
         (value << 8) + *byte as usize
     }
-    fn _read_ule(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
+    fn _read_ulesize(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
         let ret = value + ((*byte as usize) << (8 * self.i));
         self.i += 1;
         self.next_state_when_i_reaches(next_state, size);
         ret
     }
     fn read_u16(&mut self, byte: &u8, value: u16, next_state: T) -> u16 {
-        self._read_u(byte, value as usize, next_state, 2) as u16
+        self._read_usize(byte, value as usize, next_state, 2) as u16
     }
     fn read_ule16(&mut self, byte: &u8, value: u16, next_state: T) -> u16 {
-        self._read_ule(byte, value as usize, next_state, 2) as u16
+        self._read_ulesize(byte, value as usize, next_state, 2) as u16
     }
     fn read_ule32(&mut self, byte: &u8, value: u32, next_state: T) -> u32 {
-        self._read_ule(byte, value as usize, next_state, 4) as u32
+        self._read_ulesize(byte, value as usize, next_state, 4) as u32
     }
     fn read_ule64(&mut self, byte: &u8, value: u64, next_state: T) -> u64 {
-        self._read_ule(byte, value as usize, next_state, 8) as u64
+        self._read_ulesize(byte, value as usize, next_state, 8) as u64
     }
 }
 
@@ -411,7 +411,12 @@ impl Packet for SMB1NegotiateRequest {
             return None;
         }
         let mut resp: Vec<u8> = Vec::new();
-        let time: u64 = (EPOCH_1601 + chrono::Utc::now().timestamp() as u64) * (1e7 as u64);
+        let time: u64 = (EPOCH_1601
+            + SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs())
+            * (1e7 as u64);
         let mut dialect_index: u16 = 0;
         let mut dialect_name = "Unknown";
         for dialect in ["NT LM 0.12", "SMB 2.???", "SMB 2.002"] {
@@ -780,7 +785,12 @@ impl Packet for SMB2NegotiateRequest {
             return None;
         }
         let mut resp: Vec<u8> = Vec::new();
-        let time: u64 = (EPOCH_1601 + chrono::Utc::now().timestamp() as u64) * (1e7 as u64);
+        let time: u64 = (EPOCH_1601
+            + SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs())
+            * (1e7 as u64);
         // Chose dialect
         let smb2_versions = [
             (0x0202, "SMB 2.002"),
@@ -905,14 +915,16 @@ impl Packet for SMB2SetupRequest {
                 );
             }
             SMB2SetupRequestState::PreviousSessionId => {
-                self.previous_session_id =
-                    self.d
-                        .read_ule64(byte, self.previous_session_id, SMB2SetupRequestState::SecurityBlob);
+                self.previous_session_id = self.d.read_ule64(
+                    byte,
+                    self.previous_session_id,
+                    SMB2SetupRequestState::SecurityBlob,
+                );
             }
             SMB2SetupRequestState::SecurityBlob => {
                 // TODO ? Not super useful TBH, also this is ASN.1 :///
                 self.d.next_state(SMB2SetupRequestState::End);
-            },
+            }
             SMB2SetupRequestState::End => {}
         }
     }
@@ -956,7 +968,7 @@ pub fn repl_smb1<'a>(
     for byte in data {
         nbtsession.parse(byte);
     }
-    return nbtsession.repl();
+    nbtsession.repl()
 }
 
 pub fn repl_smb2<'a>(
@@ -968,7 +980,7 @@ pub fn repl_smb2<'a>(
     for byte in data {
         nbtsession.parse(byte);
     }
-    return nbtsession.repl();
+    nbtsession.repl()
 }
 
 ///////////
@@ -1040,6 +1052,7 @@ mod tests {
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
             ip_addresses: None,
+            log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
         let answer =
@@ -1111,6 +1124,7 @@ mod tests {
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
             ip_addresses: None,
+            log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
         let answer =
