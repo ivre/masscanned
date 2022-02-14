@@ -39,24 +39,20 @@ pub fn repl<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableIpv4Packet<'b>> {
-    debug!("receiving IPv4 packet: {:?}", ip_req);
+    /* Fill client info with source and dest. IP addresses */
+    client_info.ip.src = Some(IpAddr::V4(ip_req.get_source()));
+    client_info.ip.dst = Some(IpAddr::V4(ip_req.get_destination()));
+    masscanned.log.ipv4_recv(&ip_req, &client_info);
     /* If masscanned is configured with IP addresses, then
      * check that the dest. IP address of the packet is one of
      * those handled by masscanned - otherwise, drop the packet.
      **/
     if let Some(ip_addr_list) = masscanned.ip_addresses {
         if !ip_addr_list.contains(&IpAddr::V4(ip_req.get_destination())) {
-            info!(
-                "Ignoring IP packet from {} for {}",
-                ip_req.get_source(),
-                ip_req.get_destination()
-            );
+            masscanned.log.ipv4_drop(&ip_req, &client_info);
             return None;
         }
     }
-    /* Fill client info with source and dest. IP addresses */
-    client_info.ip.src = Some(IpAddr::V4(ip_req.get_source()));
-    client_info.ip.dst = Some(IpAddr::V4(ip_req.get_destination()));
     /* Fill client info with transport layer procotol */
     client_info.transport = Some(ip_req.get_next_level_protocol());
     let mut ip_repl;
@@ -77,6 +73,7 @@ pub fn repl<'a, 'b>(
                 ip_repl.set_payload(icmp_repl.packet());
                 ip_repl.set_next_level_protocol(IpNextHeaderProtocols::Icmp);
             } else {
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
                 return None;
             }
         }
@@ -99,6 +96,7 @@ pub fn repl<'a, 'b>(
                 ip_repl.set_payload(tcp_repl.packet());
                 ip_repl.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
             } else {
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
                 return None;
             }
         }
@@ -123,15 +121,13 @@ pub fn repl<'a, 'b>(
                 ip_repl.set_payload(udp_repl.packet());
                 ip_repl.set_next_level_protocol(IpNextHeaderProtocols::Udp);
             } else {
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
                 return None;
             }
         }
         /* Next layer protocol not handled (yet) - dropping packet */
         _ => {
-            info!(
-                "IPv4 upper layer not handled: {:?}",
-                ip_req.get_next_level_protocol()
-            );
+            masscanned.log.ipv4_drop(&ip_req, &client_info);
             return None;
         }
     };
@@ -150,7 +146,7 @@ pub fn repl<'a, 'b>(
     /* FIXME when dest. was a multicast IP address */
     ip_repl.set_source(ip_req.get_destination());
     ip_repl.set_destination(ip_req.get_source());
-    debug!("sending IPv4 packet: {:?}", ip_repl);
+    masscanned.log.ipv4_send(&ip_repl, &client_info);
     Some(ip_repl)
 }
 
@@ -162,6 +158,8 @@ mod tests {
     use std::str::FromStr;
 
     use pnet::util::MacAddr;
+
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_ipv4_reply() {
@@ -178,6 +176,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut ip_req =
             MutableIpv4Packet::owned(vec![0; Ipv4Packet::minimum_packet_size() + payload.len()])

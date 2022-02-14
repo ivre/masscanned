@@ -290,12 +290,27 @@ tcpdump: pcap_loop: The interface disappeared
 0 packets dropped by kernel
 ```
 
-### Logging Policy
+## Logging
 
-* `ERR`: any error - will always be displayed.
-* `WARN`, `-v`: responses sent by `masscanned`.
-* `INFO`, `-vv`: packets not handled, packets ignored.
-* `DEBUG`, `-vvv`: all packets received and sent by `masscanned`.
+### Console Logger
+
+**Verbs**: 
+* `init`
+* `recv`
+* `send`
+* `drop`
+
+#### ARP
+
+```
+$ts arp $verb   $operation $client_mac $client_ip  $masscanned_mac $masscanned_ip
+```
+
+#### Ethernet
+
+```
+$ts eth $verb   $ethertype  $client_mac $masscanned_mac
+```
 
 ## To Do
 

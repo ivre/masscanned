@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
-use log::*;
-
 use pnet::packet::{
     udp::{MutableUdpPacket, UdpPacket},
     Packet,
@@ -30,7 +28,7 @@ pub fn repl<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableUdpPacket<'b>> {
-    debug!("receiving UDP packet: {:?}", udp_req);
+    masscanned.log.udp_recv(udp_req, client_info);
     /* Fill client info with source and dest. UDP port */
     client_info.port.src = Some(udp_req.get_source());
     client_info.port.dst = Some(udp_req.get_destination());
@@ -43,12 +41,13 @@ pub fn repl<'a, 'b>(
         .expect("error constructing a UDP packet");
         udp_repl.set_length(udp_repl.packet().len() as u16);
     } else {
+        masscanned.log.udp_drop(udp_req, client_info);
         return None;
     }
     /* Set source and dest. port for response packet from client info */
     /* Note: client info could have been modified by upper layers (e.g., STUN) */
     udp_repl.set_source(client_info.port.dst.unwrap());
     udp_repl.set_destination(client_info.port.src.unwrap());
-    debug!("sending UDP packet: {:?}", udp_repl);
+    masscanned.log.udp_send(&udp_repl, client_info);
     Some(udp_repl)
 }

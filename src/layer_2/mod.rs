@@ -104,7 +104,10 @@ pub fn reply<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableEthernetPacket<'b>> {
-    debug!("receiving Ethernet packet: {:?}", eth_req);
+    /* Fill client information for this packet with MAC addresses (src and dst) */
+    client_info.mac.src = Some(eth_req.get_source());
+    client_info.mac.dst = Some(eth_req.get_destination());
+    masscanned.log.eth_recv(eth_req, &client_info);
     let mut eth_repl;
     /* First, check if the destination MAC address is one of those masscanned
      * is authorized to answer to (avoid answering to packets addressed to
@@ -113,16 +116,9 @@ pub fn reply<'a, 'b>(
     if !get_authorized_eth_addr(&masscanned.mac, masscanned.ip_addresses)
         .contains(&eth_req.get_destination())
     {
-        info!(
-            "Ignoring Ethernet packet from {} to {}",
-            eth_req.get_source(),
-            eth_req.get_destination(),
-        );
+        masscanned.log.eth_drop(eth_req, &client_info);
         return None;
     }
-    /* Fill client information for this packet with MAC addresses (src and dst) */
-    client_info.mac.src = Some(eth_req.get_source());
-    client_info.mac.dst = Some(eth_req.get_destination());
     /* Build next layer payload for answer depending on the incoming packet */
     match eth_req.get_ethertype() {
         /* Construct answer to ARP request */
@@ -136,6 +132,7 @@ pub fn reply<'a, 'b>(
                 eth_repl.set_ethertype(EtherTypes::Arp);
                 eth_repl.set_payload(arp_repl.packet());
             } else {
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             }
         }
@@ -145,6 +142,7 @@ pub fn reply<'a, 'b>(
                 p
             } else {
                 warn!("error parsing IPv4 packet");
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             };
             if let Some(mut ipv4_repl) =
@@ -158,6 +156,7 @@ pub fn reply<'a, 'b>(
                 eth_repl.set_ethertype(EtherTypes::Ipv4);
                 eth_repl.set_payload(ipv4_repl.packet());
             } else {
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             }
         }
@@ -172,18 +171,20 @@ pub fn reply<'a, 'b>(
                 eth_repl.set_ethertype(EtherTypes::Ipv6);
                 eth_repl.set_payload(ipv6_repl.packet());
             } else {
+                masscanned.log.eth_drop(eth_req, &client_info);
                 return None;
             }
         }
         /* Log & drop unknown network protocol */
         _ => {
             info!("Ethernet type not handled: {:?}", eth_req.get_ethertype());
+            masscanned.log.eth_drop(eth_req, &client_info);
             return None;
         }
     };
     eth_repl.set_source(masscanned.mac);
     eth_repl.set_destination(eth_req.get_source());
-    debug!("sending Ethernet packet: {:?}", eth_repl);
+    masscanned.log.eth_send(&eth_repl, &client_info);
     Some(eth_repl)
 }
 
@@ -192,6 +193,8 @@ mod tests {
     use super::*;
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
+
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_eth_reply() {
@@ -212,6 +215,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut eth_req = MutableEthernetPacket::owned(vec![
             0;

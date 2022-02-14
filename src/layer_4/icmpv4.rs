@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
-use log::*;
-
 use pnet::packet::{
     icmp::{IcmpCode, IcmpPacket, IcmpTypes, MutableIcmpPacket},
     Packet,
@@ -26,16 +24,16 @@ use crate::Masscanned;
 
 pub fn repl<'a, 'b>(
     icmp_req: &'a IcmpPacket,
-    _masscanned: &Masscanned,
-    mut _client_info: &ClientInfo,
+    masscanned: &Masscanned,
+    client_info: &ClientInfo,
 ) -> Option<MutableIcmpPacket<'b>> {
-    debug!("receiving ICMPv4 packet: {:?}", icmp_req);
+    masscanned.log.icmpv4_recv(icmp_req, client_info);
     let mut icmp_repl;
     match icmp_req.get_icmp_type() {
         IcmpTypes::EchoRequest => {
             /* Check code of ICMP packet */
             if icmp_req.get_icmp_code() != IcmpCode(0) {
-                info!("ICMP code not handled: {:?}", icmp_req.get_icmp_code());
+                masscanned.log.icmpv4_drop(icmp_req, client_info);
                 return None;
             }
             /* Compute answer length */
@@ -53,13 +51,13 @@ pub fn repl<'a, 'b>(
              * reply message."
              **/
             icmp_repl.set_payload(icmp_req.payload());
-            warn!("ICMP-Echo-Reply to ICMP-Echo-Request");
         }
         _ => {
+            masscanned.log.icmpv4_drop(icmp_req, client_info);
             return None;
         }
     };
-    debug!("sending ICMPv4 packet: {:?}", icmp_repl);
+    masscanned.log.icmpv4_send(&icmp_repl, client_info);
     Some(icmp_repl)
 }
 
@@ -69,6 +67,8 @@ mod tests {
     use std::str::FromStr;
 
     use pnet::util::MacAddr;
+
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_icmpv4_reply() {
@@ -81,6 +81,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: None,
+            log: MetaLogger::new(),
         };
         let mut icmp_req =
             MutableIcmpPacket::owned(vec![0; IcmpPacket::minimum_packet_size() + payload.len()])

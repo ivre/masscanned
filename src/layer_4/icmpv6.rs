@@ -103,7 +103,7 @@ pub fn repl<'a, 'b>(
     masscanned: &Masscanned,
     client_info: &ClientInfo,
 ) -> (Option<MutableIcmpv6Packet<'b>>, Option<Ipv6Addr>) {
-    debug!("receiving ICMPv6 packet: {:?}", icmp_req);
+    masscanned.log.icmpv6_recv(icmp_req, client_info);
     let mut dst_ip = None;
     if icmp_req.get_icmpv6_code() != Icmpv6Codes::NoCode {
         return (None, None);
@@ -120,6 +120,7 @@ pub fn repl<'a, 'b>(
                 icmp_repl = MutableIcmpv6Packet::owned(nd_na_repl.packet().to_vec())
                     .expect("error constructing an ICMPv6 packet");
             } else {
+                masscanned.log.icmpv6_drop(icmp_req, client_info);
                 return (None, None);
             }
         }
@@ -136,17 +137,13 @@ pub fn repl<'a, 'b>(
             icmp_repl = MutableIcmpv6Packet::owned(vec![0; Icmpv6Packet::packet_size(&echo_repl)])
                 .expect("error constructing an ICMPv6 packet");
             icmp_repl.populate(&echo_repl);
-            warn!("ICMPv6-Echo-Reply to ICMPv6-Echo-Request");
         }
         _ => {
-            info!(
-                "ICMPv6 packet not handled: {:?}",
-                icmp_req.get_icmpv6_type()
-            );
+            masscanned.log.icmpv6_drop(icmp_req, client_info);
             return (None, None);
         }
     };
-    debug!("sending ICMPv6 packet: {:?}", icmp_repl);
+    masscanned.log.icmpv6_send(&icmp_repl, client_info);
     (Some(icmp_repl), dst_ip)
 }
 
@@ -159,6 +156,8 @@ mod tests {
 
     use pnet::packet::icmpv6::ndp::{MutableNeighborSolicitPacket, NeighborSolicit};
     use pnet::util::MacAddr;
+
+    use crate::logger::MetaLogger;
 
     #[test]
     fn test_nd_na_reply() {
@@ -174,6 +173,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         /* Legitimate solicitation */
         let ndp_ns = NeighborSolicit {
@@ -246,6 +246,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
         };
         let mut icmpv6_echo_req = MutableIcmpv6Packet::owned(vec![
             0;

@@ -35,12 +35,14 @@ use pnet::{
     util::MacAddr,
 };
 
+use crate::logger::{ConsoleLogger, MetaLogger};
 use crate::utils::IpAddrParser;
 
 mod client;
 mod layer_2;
 mod layer_3;
 mod layer_4;
+mod logger;
 mod proto;
 mod smack;
 mod synackcookie;
@@ -55,6 +57,8 @@ pub struct Masscanned<'a> {
     /* iface is an Option to make tests easier */
     pub iface: Option<&'a NetworkInterface>,
     pub ip_addresses: Option<&'a HashSet<IpAddr>>,
+    /* loggers */
+    pub log: MetaLogger,
 }
 
 /* Get the L2 network interface from its name */
@@ -184,14 +188,17 @@ fn main() {
     } else {
         None
     };
-    let masscanned = Masscanned {
+    let mut masscanned = Masscanned {
         synack_key: [0, 0],
         mac,
         iface: Some(&iface),
         ip_addresses,
+        log: MetaLogger::new(),
     };
     info!("interface......{}", masscanned.iface.unwrap().name);
     info!("mac address....{}", masscanned.mac);
+    masscanned.log.add(Box::new(ConsoleLogger::new()));
+    masscanned.log.init();
     let (mut tx, mut rx) = get_channel(masscanned.iface.unwrap());
     loop {
         /* check if network interface is still up */
