@@ -13,29 +13,3 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
-
-import importlib
-import os
-
-# Export / other tests
-from .core import test_all
-
-DEFAULT_TESTS = [
-    "arp",
-    "ghost",
-    "http",
-    "icmpv4",
-    "icmpv6",
-    "ip46",
-    "rpc",
-    "smb",
-    "ssh",
-    "stun",
-]
-
-ENABLED_TESTS = DEFAULT_TESTS
-if tests := os.environ.get("TESTS"):
-    ENABLED_TESTS = [x.strip() for x in tests.split(",")]
-
-for test in ENABLED_TESTS:
-    importlib.import_module(".tests." + test, package="src")

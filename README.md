@@ -290,6 +290,14 @@ tcpdump: pcap_loop: The interface disappeared
 0 packets dropped by kernel
 ```
 
+You can also chose what tests to run using the `TESTS` environment variable
+```
+TESTS=smb ./test/test_masscanned.py
+INFO    test_smb1_network_req.............................OK
+INFO    test_smb2_network_req.............................OK
+INFO    Ran 2 tests with 1 errors
+```
+
 ## Logging
 
 ### Console Logger

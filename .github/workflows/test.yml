@@ -87,7 +87,7 @@ jobs:
       run: sudo pip install -U flake8 black
 
     - name: Install packages for tests
-      run: sudo apt-get -q update && sudo apt-get -qy install nmap rpcbind
+      run: sudo apt-get -q update && sudo apt-get -qy install nmap rpcbind smbclient
 
     - name: Run black
       run: black -t py36 --check test/test_masscanned.py test/src/

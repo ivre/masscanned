@@ -18,7 +18,6 @@
 
 import atexit
 import functools
-import logging
 import os
 from signal import SIGINT
 import subprocess
@@ -37,16 +36,6 @@ from scapy.interfaces import resolve_iface
 
 from src.all import test_all
 from src.conf import IPV4_ADDR, IPV6_ADDR, MAC_ADDR, OUTDIR
-
-
-def setup_logs():
-    ch = logging.StreamHandler()
-    ch.setFormatter(logging.Formatter("%(levelname)s\t%(message)s"))
-    ch.setLevel(logging.INFO)
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.INFO)
-    log.addHandler(ch)
-    return log
 
 
 def cleanup_net(iface):
@@ -77,10 +66,10 @@ def cleanup_net(iface):
 def setup_net(iface):
     global IPV4_ADDR
     # create the interfaces pair
+    atexit.register(functools.partial(cleanup_net, f"{iface}a"))
     subprocess.check_call(
         ["ip", "link", "add", f"{iface}a", "type", "veth", "peer", f"{iface}b"]
     )
-    atexit.register(functools.partial(cleanup_net, f"{iface}a"))
     for sub in "a", "b":
         subprocess.check_call(["ip", "link", "set", f"{iface}{sub}", "up"])
     subprocess.check_call(["ip", "addr", "add", "dev", f"{iface}a", "192.0.0.0/31"])
@@ -110,7 +99,6 @@ def setup_net(iface):
     conf.route6.resync()
 
 
-LOG = setup_logs()
 IFACE = "masscanned"
 setup_net(IFACE)
 TCPDUMP = bool(os.environ.get("USE_TCPDUMP"))
