@@ -39,12 +39,17 @@ use ghost::GHOST_PATTERN_SIGNATURE;
 mod rpc;
 use rpc::{RPC_CALL_TCP, RPC_CALL_UDP};
 
+mod smb;
+use smb::{SMB1_PATTERN_MAGIC, SMB2_PATTERN_MAGIC};
+
 const PROTO_HTTP: usize = 1;
 const PROTO_STUN: usize = 2;
 const PROTO_SSH: usize = 3;
 const PROTO_GHOST: usize = 4;
 const PROTO_RPC_TCP: usize = 5;
 const PROTO_RPC_UDP: usize = 6;
+const PROTO_SMB1: usize = 7;
+const PROTO_SMB2: usize = 8;
 
 struct TCPControlBlock {
     proto_state: usize,
@@ -100,6 +105,16 @@ fn proto_init() -> Smack {
         PROTO_RPC_UDP,
         SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
     );
+    smack.add_pattern(
+        SMB1_PATTERN_MAGIC,
+        PROTO_SMB1,
+        SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
+    );
+    smack.add_pattern(
+        SMB2_PATTERN_MAGIC,
+        PROTO_SMB2,
+        SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
+    );
     smack.compile();
     smack
 }
@@ -129,13 +144,13 @@ pub fn repl<'a>(
         let mut i = 0;
         let mut tcb = ct.get_mut(&cookie).unwrap();
         let mut state = tcb.proto_state;
-        id = PROTO_SMACK.search_next(&mut state, &data.to_vec(), &mut i);
+        id = PROTO_SMACK.search_next(&mut state, data, &mut i);
         tcb.proto_state = state;
     } else {
         /* proto over else (e.g., UDP) */
         let mut i = 0;
         let mut state = BASE_STATE;
-        id = PROTO_SMACK.search_next(&mut state, &data.to_vec(), &mut i);
+        id = PROTO_SMACK.search_next(&mut state, data, &mut i);
         /* because we are not over TCP, we can afford to assume end of pattern */
         if id == NO_MATCH {
             id = PROTO_SMACK.search_next_end(&mut state);
@@ -149,6 +164,8 @@ pub fn repl<'a>(
         PROTO_GHOST => ghost::repl(data, masscanned, &mut client_info),
         PROTO_RPC_TCP => rpc::repl_tcp(data, masscanned, &mut client_info),
         PROTO_RPC_UDP => rpc::repl_udp(data, masscanned, &mut client_info),
+        PROTO_SMB1 => smb::repl_smb1(data, masscanned, &mut client_info),
+        PROTO_SMB2 => smb::repl_smb2(data, masscanned, &mut client_info),
         _ => {
             debug!("id: {}", id);
             None
