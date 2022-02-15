@@ -18,7 +18,7 @@ import importlib
 import os
 
 # Export / other tests
-from .core import test_all
+from .core import test_all  # noqa: F401
 
 DEFAULT_TESTS = [
     "arp",
@@ -26,11 +26,12 @@ DEFAULT_TESTS = [
     "http",
     "icmpv4",
     "icmpv6",
-    "ip46",
+    "ip",
     "rpc",
     "smb",
     "ssh",
     "stun",
+    "tcp",
 ]
 
 ENABLED_TESTS = DEFAULT_TESTS

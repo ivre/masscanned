@@ -36,6 +36,7 @@ LOG = setup_logs()
 TESTS = []
 ERRORS = []
 
+
 # decorator to automatically add a function to tests
 def test(f):
     global ERRORS, TESTS
