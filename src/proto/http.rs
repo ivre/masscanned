@@ -21,6 +21,7 @@ use lazy_static::lazy_static;
 use std::str;
 
 use crate::client::ClientInfo;
+use crate::proto::{ProtocolState as GenericProtocolState, TCPControlBlock};
 use crate::smack::{
     Smack, SmackFlags, BASE_STATE, NO_MATCH, SMACK_CASE_INSENSITIVE, UNANCHORED_STATE,
 };
@@ -62,7 +63,7 @@ const HTTP_STATE_CONTENT: usize = 64;
 
 const HTTP_STATE_FAIL: usize = 0xFFFF;
 
-struct ProtocolState {
+pub struct ProtocolState {
     state: usize,
     state_bis: usize,
     smack_state: usize,
@@ -223,9 +224,28 @@ pub fn repl<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     _client_info: &ClientInfo,
+    tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     debug!("receiving HTTP data");
-    let mut pstate = ProtocolState::new();
+    let mut state = ProtocolState::new();
+    let mut pstate = {
+        if let Some(t) = tcb {
+            match t.proto_state {
+                None => t.proto_state = Some(GenericProtocolState::HTTP(ProtocolState::new())),
+                Some(GenericProtocolState::HTTP(_)) => {}
+                _ => {
+                    panic!()
+                }
+            };
+            if let Some(GenericProtocolState::HTTP(p)) = &mut t.proto_state {
+                p
+            } else {
+                panic!();
+            }
+        } else {
+            &mut state
+        }
+    };
     http_parse(&mut pstate, data);
     if pstate.state == HTTP_STATE_FAIL {
         debug!("data in not correctly formatted - not responding");

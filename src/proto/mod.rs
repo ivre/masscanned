@@ -25,7 +25,7 @@ use crate::smack::{Smack, SmackFlags, BASE_STATE, NO_MATCH, SMACK_CASE_SENSITIVE
 use crate::Masscanned;
 
 mod http;
-use http::HTTP_VERBS;
+use http::{ProtocolState as HTTPProtocolState, HTTP_VERBS};
 
 mod stun;
 use stun::{STUN_PATTERN_CHANGE_REQUEST, STUN_PATTERN_EMPTY, STUN_PATTERN_MAGIC};
@@ -37,11 +37,12 @@ mod ghost;
 use ghost::GHOST_PATTERN_SIGNATURE;
 
 mod rpc;
-use rpc::{RPC_CALL_TCP, RPC_CALL_UDP};
+use rpc::{ProtocolState as RPCProtocolState, RPC_CALL_TCP, RPC_CALL_UDP};
 
 mod smb;
 use smb::{SMB1_PATTERN_MAGIC, SMB2_PATTERN_MAGIC};
 
+const PROTO_NONE: usize = 0;
 const PROTO_HTTP: usize = 1;
 const PROTO_STUN: usize = 2;
 const PROTO_SSH: usize = 3;
@@ -51,8 +52,18 @@ const PROTO_RPC_UDP: usize = 6;
 const PROTO_SMB1: usize = 7;
 const PROTO_SMB2: usize = 8;
 
-struct TCPControlBlock {
-    proto_state: usize,
+enum ProtocolState {
+    HTTP(HTTPProtocolState),
+    RPC(RPCProtocolState),
+}
+
+pub struct TCPControlBlock {
+    /* state used to detect protocols (not specific) */
+    smack_state: usize,
+    /* detected protocol */
+    proto_id: usize,
+    /* internal state of protocol parser (e.g., HTTP parsing) */
+    proto_state: Option<ProtocolState>,
 }
 
 lazy_static! {
@@ -126,26 +137,33 @@ pub fn repl<'a>(
 ) -> Option<Vec<u8>> {
     debug!("packet payload: {:?}", data);
     let mut id;
+    let mut ct = CONTABLE.lock().unwrap();
+    let mut tcb = None;
     if client_info.transport == Some(IpNextHeaderProtocols::Tcp) && client_info.cookie == None {
         error!("Unexpected empty cookie");
         return None;
     } else if client_info.cookie != None {
         /* proto over TCP */
         let cookie = client_info.cookie.unwrap();
-        let mut ct = CONTABLE.lock().unwrap();
         if !ct.contains_key(&cookie) {
             ct.insert(
                 cookie,
                 TCPControlBlock {
-                    proto_state: BASE_STATE,
+                    smack_state: BASE_STATE,
+                    proto_id: PROTO_NONE,
+                    proto_state: None,
                 },
             );
         }
         let mut i = 0;
-        let mut tcb = ct.get_mut(&cookie).unwrap();
-        let mut state = tcb.proto_state;
-        id = PROTO_SMACK.search_next(&mut state, data, &mut i);
-        tcb.proto_state = state;
+        let mut t = ct.get_mut(&cookie).unwrap();
+        if t.proto_id == PROTO_NONE {
+            let mut state = t.smack_state;
+            t.proto_id = PROTO_SMACK.search_next(&mut state, data, &mut i);
+            t.smack_state = state;
+        }
+        id = t.proto_id;
+        tcb = Some(t);
     } else {
         /* proto over else (e.g., UDP) */
         let mut i = 0;
@@ -158,15 +176,18 @@ pub fn repl<'a>(
     }
     /* proto over else (e.g., UDP) */
     match id {
-        PROTO_HTTP => http::repl(data, masscanned, client_info),
-        PROTO_STUN => stun::repl(data, masscanned, &mut client_info),
-        PROTO_SSH => ssh::repl(data, masscanned, &mut client_info),
-        PROTO_GHOST => ghost::repl(data, masscanned, &mut client_info),
-        PROTO_RPC_TCP => rpc::repl_tcp(data, masscanned, &mut client_info),
-        PROTO_RPC_UDP => rpc::repl_udp(data, masscanned, &mut client_info),
-        PROTO_SMB1 => smb::repl_smb1(data, masscanned, &mut client_info),
-        PROTO_SMB2 => smb::repl_smb2(data, masscanned, &mut client_info),
+        PROTO_HTTP => http::repl(data, masscanned, client_info, tcb),
+        PROTO_STUN => stun::repl(data, masscanned, &mut client_info, tcb),
+        PROTO_SSH => ssh::repl(data, masscanned, &mut client_info, tcb),
+        PROTO_GHOST => ghost::repl(data, masscanned, &mut client_info, tcb),
+        PROTO_RPC_TCP => rpc::repl_tcp(data, masscanned, &mut client_info, tcb),
+        PROTO_RPC_UDP => rpc::repl_udp(data, masscanned, &mut client_info, tcb),
+        PROTO_SMB1 => smb::repl_smb1(data, masscanned, &mut client_info, tcb),
+        PROTO_SMB2 => smb::repl_smb2(data, masscanned, &mut client_info, tcb),
         _ => {
+            if let Some(t) = &mut tcb {
+                t.proto_id = PROTO_NONE;
+            }
             debug!("id: {}", id);
             None
         }
@@ -183,6 +204,176 @@ mod tests {
     use pnet::util::MacAddr;
 
     use crate::logger::MetaLogger;
+    use crate::synackcookie;
+
+    #[test]
+    fn test_proto_tcb_proto_id() {
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
+        client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
+        client_info.port.src = Some(65000);
+        client_info.port.dst = Some(80);
+        client_info.transport = Some(IpNextHeaderProtocols::Tcp);
+        let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        client_info.ip.dst = Some(IpAddr::V4(masscanned_ip_addr));
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        let cookie = synackcookie::generate(&client_info, &masscanned.synack_key).unwrap();
+        client_info.cookie = Some(cookie);
+        {
+            let ct = CONTABLE.lock().unwrap();
+            if ct.contains_key(&cookie) {
+                panic!("expected no TCB entry, found one");
+            }
+        }
+        /***** TEST PROTOCOL ID IN TCB *****/
+        let payload = b"GET / HTTP/1.1\r\n";
+        repl(&payload.to_vec(), &masscanned, &mut client_info);
+        {
+            let mut ct = CONTABLE.lock().unwrap();
+            if !ct.contains_key(&cookie) {
+                panic!("expected a TCB entry, not found");
+            }
+            let t = ct.get_mut(&cookie).unwrap();
+            assert!(t.proto_id == PROTO_HTTP);
+        }
+        /***** SENDING MORE DATA *****/
+        let payload = b"garbage data with no specific format (no protocol)\r\n\r\n";
+        repl(&payload.to_vec(), &masscanned, &mut client_info);
+        {
+            let mut ct = CONTABLE.lock().unwrap();
+            if !ct.contains_key(&cookie) {
+                panic!("expected a TCB entry, not found");
+            }
+            let t = ct.get_mut(&cookie).unwrap();
+            assert!(t.proto_id == PROTO_HTTP);
+        }
+    }
+
+    #[test]
+    fn test_proto_tcb_proto_state_http() {
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
+        client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
+        client_info.port.src = Some(65001);
+        client_info.port.dst = Some(80);
+        client_info.transport = Some(IpNextHeaderProtocols::Tcp);
+        let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        client_info.ip.dst = Some(IpAddr::V4(masscanned_ip_addr));
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        let cookie = synackcookie::generate(&client_info, &masscanned.synack_key).unwrap();
+        client_info.cookie = Some(cookie);
+        {
+            let ct = CONTABLE.lock().unwrap();
+            if ct.contains_key(&cookie) {
+                panic!("expected no TCB entry, found one");
+            }
+        }
+        /***** TEST PROTOCOL ID IN TCB *****/
+        let payload = b"GET / HTTP/1.1\r\n";
+        repl(&payload.to_vec(), &masscanned, &mut client_info);
+        {
+            let mut ct = CONTABLE.lock().unwrap();
+            if !ct.contains_key(&cookie) {
+                panic!("expected a TCB entry, not found");
+            }
+            let t = ct.get_mut(&cookie).unwrap();
+            assert!(t.proto_id == PROTO_HTTP);
+            if let Some(ProtocolState::HTTP(_)) = t.proto_state {
+            } else {
+                panic!("expected a HTTP protocole state, found None");
+            }
+        }
+        /***** SENDING MORE DATA *****/
+        let payload = b"Field: empty\r\n\r\n";
+        /* Should have an answer here */
+        if let None = repl(&payload.to_vec(), &masscanned, &mut client_info) {
+            panic!("expected an HTTP response, got nothing");
+        }
+        {
+            let mut ct = CONTABLE.lock().unwrap();
+            if !ct.contains_key(&cookie) {
+                panic!("expected a TCB entry, not found");
+            }
+            let t = ct.get_mut(&cookie).unwrap();
+            assert!(t.proto_id == PROTO_HTTP);
+        }
+    }
+
+    #[test]
+    fn test_proto_tcb_proto_state_rpc() {
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
+        client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
+        client_info.port.src = Some(65002);
+        client_info.port.dst = Some(80);
+        client_info.transport = Some(IpNextHeaderProtocols::Tcp);
+        let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        client_info.ip.dst = Some(IpAddr::V4(masscanned_ip_addr));
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        let cookie = synackcookie::generate(&client_info, &masscanned.synack_key).unwrap();
+        client_info.cookie = Some(cookie);
+        {
+            let ct = CONTABLE.lock().unwrap();
+            if ct.contains_key(&cookie) {
+                panic!("expected no TCB entry, found one");
+            }
+        }
+        /***** TEST PROTOCOL ID IN TCB *****/
+        let payload = b"\x80\x00\x00\x28\x72\xfe\x1d\x13\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xa0\x00\x01\x97\x7c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+        repl(&payload[0..28].to_vec(), &masscanned, &mut client_info);
+        {
+            let mut ct = CONTABLE.lock().unwrap();
+            if !ct.contains_key(&cookie) {
+                panic!("expected a TCB entry, not found");
+            }
+            let t = ct.get_mut(&cookie).unwrap();
+            assert!(t.proto_id == PROTO_RPC_TCP);
+            if let Some(ProtocolState::RPC(_)) = t.proto_state {
+            } else {
+                panic!("expected a RPC protocole state, found None");
+            }
+        }
+        /***** SENDING MORE DATA *****/
+        /* Should have an answer here */
+        if let None = repl(&payload[28..].to_vec(), &masscanned, &mut client_info) {
+            panic!("expected a RPC response, got nothing");
+        }
+        {
+            let mut ct = CONTABLE.lock().unwrap();
+            if !ct.contains_key(&cookie) {
+                panic!("expected a TCB entry, not found");
+            }
+            let t = ct.get_mut(&cookie).unwrap();
+            assert!(t.proto_id == PROTO_RPC_TCP);
+        }
+    }
 
     #[test]
     fn test_proto_dispatch_stun() {

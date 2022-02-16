@@ -19,6 +19,7 @@ use log::*;
 use std::str;
 
 use crate::client::ClientInfo;
+use crate::proto::TCPControlBlock;
 use crate::Masscanned;
 
 pub const SSH_PATTERN_CLIENT_PROTOCOL: &[u8; 7] = b"SSH-2.0";
@@ -27,6 +28,7 @@ pub fn repl<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     mut _client_info: &mut ClientInfo,
+    _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     debug!("receiving SSH data");
     let repl_data = b"SSH-2.0-1\r\n".to_vec();
