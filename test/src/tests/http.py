@@ -76,7 +76,7 @@ def test_ipv4_tcp_http():
 
 @test
 def test_ipv4_tcp_http_segmented():
-    sport = 24592
+    sport = 24593
     dports = [80, 443, 5000, 53228]
     for dport in dports:
         seq_init = int(RandInt())
@@ -120,7 +120,9 @@ def test_ipv4_tcp_http_segmented():
         assert resp is not None, "expecting answer, got nothing"
         check_ip_checksum(resp)
         assert TCP in resp, "expecting TCP, got %r" % resp.summary()
-        assert resp[TCP].flags == "A"
+        assert resp[TCP].flags == "A", (
+            'expecting TCP flag "A", got %r' % resp[TCP].flags
+        )
         req = (
             Ether(dst=MAC_ADDR)
             / IP(dst=IPV4_ADDR)

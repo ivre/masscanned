@@ -20,7 +20,6 @@ use std::convert::TryInto;
 use std::time::SystemTime;
 
 use crate::client::ClientInfo;
-use crate::logger::MetaLogger;
 use crate::proto::TCPControlBlock;
 use crate::Masscanned;
 

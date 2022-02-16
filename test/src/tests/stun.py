@@ -127,9 +127,9 @@ def test_ipv4_udp_stun_change_port():
             assert UDP in resp, "no UDP layer found"
             udp = resp[UDP]
             assert (
-                udp.sport == (dport + 1) % 2**16
+                udp.sport == (dport + 1) % 2 ** 16
             ), "expected answer from UDP/{}, got it from UDP/{}".format(
-                (dport + 1) % 2**16, udp.sport
+                (dport + 1) % 2 ** 16, udp.sport
             )
             assert (
                 udp.dport == sport
@@ -170,9 +170,9 @@ def test_ipv6_udp_stun_change_port():
             assert UDP in resp, "expecting UDP layer in answer, got nothing"
             udp = resp[UDP]
             assert (
-                udp.sport == (dport + 1) % 2**16
+                udp.sport == (dport + 1) % 2 ** 16
             ), "expected answer from UDP/{}, got it from UDP/{}".format(
-                (dport + 1) % 2**16, udp.sport
+                (dport + 1) % 2 ** 16, udp.sport
             )
             assert (
                 udp.dport == sport

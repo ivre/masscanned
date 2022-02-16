@@ -63,11 +63,11 @@ def test_rpc_nmap():
         assert port["service_name"] in {
             "rpcbind",
             "nfs",
-            }, f"Unexpected service_name: {port['service_name']}"
+        }, f"Unexpected service_name: {port['service_name']}"
         assert port["service_extrainfo"] in {
             "RPC #100000",
             "RPC #100003",
-            }, f"Unexpected service_extrainfo: {port['service_extrainfo']}"
+        }, f"Unexpected service_extrainfo: {port['service_extrainfo']}"
         assert (
             len(port["scripts"]) == 1
         ), f"Expected 1 script, got {len(port['scripts'])}"
