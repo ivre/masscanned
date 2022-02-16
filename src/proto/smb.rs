@@ -20,6 +20,8 @@ use std::convert::TryInto;
 use std::time::SystemTime;
 
 use crate::client::ClientInfo;
+use crate::logger::MetaLogger;
+use crate::proto::TCPControlBlock;
 use crate::Masscanned;
 
 // NBTSession + SMB Header
@@ -962,6 +964,7 @@ pub fn repl_smb1<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     _client_info: &ClientInfo,
+    _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     let mut nbtsession: NBTSession<SMB1Header> = NBTSession::new();
     for byte in data {
@@ -974,6 +977,7 @@ pub fn repl_smb2<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
     _client_info: &ClientInfo,
+    _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     let mut nbtsession: NBTSession<SMB2Header> = NBTSession::new();
     for byte in data {
@@ -1057,7 +1061,7 @@ mod tests {
         };
         let client_info = ClientInfo::new();
         let answer =
-            repl_smb1(SMB1_REQ_PAYLOAD, &masscanned, &client_info).expect("Error: no answer");
+            repl_smb1(SMB1_REQ_PAYLOAD, &masscanned, &client_info, None).expect("Error: no answer");
         let expected = [
             0, 0, 1, 149, 255, 83, 77, 66, 114, 0, 0, 0, 0, 152, 7, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 254, 255, 0, 0, 0, 0, 17, 1, 0, 3, 50, 0, 50, 0, 0, 0, 1, 0, 0, 0, 1, 0,
@@ -1129,7 +1133,7 @@ mod tests {
         };
         let client_info = ClientInfo::new();
         let answer =
-            repl_smb2(SMB2_REQ_PAYLOAD, &masscanned, &client_info).expect("Error: no answer");
+            repl_smb2(SMB2_REQ_PAYLOAD, &masscanned, &client_info, None).expect("Error: no answer");
         let expected = [
             0, 0, 1, 192, 254, 83, 77, 66, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
