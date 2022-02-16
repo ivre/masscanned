@@ -20,7 +20,6 @@ use std::convert::TryInto;
 use std::time::SystemTime;
 
 use crate::client::ClientInfo;
-use crate::logger::MetaLogger;
 use crate::Masscanned;
 
 // NBTSession + SMB Header
@@ -990,6 +989,8 @@ pub fn repl_smb2<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::logger::MetaLogger;
+
     use itertools::assert_equal;
     use pnet::util::MacAddr;
     use std::str::FromStr;
