@@ -49,16 +49,24 @@ pub fn repl<'a, 'b>(
             };
             /* Compute syncookie */
             if let Ok(cookie) = synackcookie::generate(&client_info, &masscanned.synack_key) {
-                if cookie != ackno {
-                    masscanned.log.tcp_drop(tcp_req, client_info);
-                    return None;
-                }
                 client_info.cookie = Some(cookie);
+                if !proto::is_tcb_set(cookie) {
+                    /* First Ack: check syncookie, create tcb */
+                    if cookie != ackno {
+                        masscanned.log.tcp_drop(tcp_req, client_info);
+                        return None;
+                    }
+                    proto::add_tcb(cookie);
+                }
             }
             warn!("ACK to PSH-ACK on port {}", tcp_req.get_destination());
             let payload = tcp_req.payload();
             /* Any answer to upper-layer protocol? */
-            if let Some(repl) = proto::repl(&payload, masscanned, &mut client_info) {
+            let mut payload_repl = None;
+            proto::get_tcb(client_info.cookie.unwrap(), |tcb| {
+                payload_repl = proto::repl(&payload, masscanned, &mut client_info, tcb);
+            });
+            if let Some(repl) = payload_repl {
                 tcp_repl = MutableTcpPacket::owned(
                     [vec![0; MutableTcpPacket::minimum_packet_size()], repl].concat(),
                 )

@@ -21,7 +21,7 @@ use std::net::IpAddr;
 use pnet::packet::ip::IpNextHeaderProtocol;
 use pnet::util::MacAddr;
 
-#[derive(PartialEq, Hash, Copy, Clone)]
+#[derive(PartialEq, Hash, Copy, Clone, Debug)]
 pub struct ClientInfoSrcDst<A: Hash + PartialEq + Clone> {
     pub src: Option<A>,
     pub dst: Option<A>,
@@ -35,7 +35,7 @@ pub struct ClientInfoSrcDst<A: Hash + PartialEq + Clone> {
  * - source and dest. transport port
  * - syn cookie
  **/
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct ClientInfo {
     pub mac: ClientInfoSrcDst<MacAddr>,
     pub ip: ClientInfoSrcDst<IpAddr>,
