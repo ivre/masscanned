@@ -34,7 +34,7 @@ pub fn repl<'a, 'b>(
     client_info.port.dst = Some(udp_req.get_destination());
     let payload = udp_req.payload();
     let mut udp_repl;
-    if let Some(repl) = proto::repl(&payload, masscanned, &mut client_info) {
+    if let Some(repl) = proto::repl(&payload, masscanned, &mut client_info, None) {
         udp_repl = MutableUdpPacket::owned(
             [vec![0; MutableUdpPacket::minimum_packet_size()], repl].concat(),
         )
