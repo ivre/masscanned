@@ -363,18 +363,24 @@ mod tests {
         /***** SEND BANNER A FIRST TIME *****/
         let payload = b"SSH-2.0-PUTTY";
         match repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
-            None => { panic!("expected an answer, got nothing") }
-            Some(banner) => { if banner != SSH_SERVER_BANNER { panic!("unexpected banner: {:?}", banner); } }
-        } 
+            None => {
+                panic!("expected an answer, got nothing")
+            }
+            Some(banner) => {
+                if banner != SSH_SERVER_BANNER {
+                    panic!("unexpected banner: {:?}", banner);
+                }
+            }
+        }
         /***** SEND ONE ADDITIONAL BYTE *****/
         let payload = b"X";
         if let Some(banner) = repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
-            panic!("unexpected banner: {:?}", banner); 
-        } 
+            panic!("unexpected banner: {:?}", banner);
+        }
         /***** SEND A SECOND BANNER *****/
         let payload = b"SSH-2.0-PUTTY";
         if let Some(banner) = repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
-            panic!("unexpected banner: {:?}", banner); 
-        } 
+            panic!("unexpected banner: {:?}", banner);
+        }
     }
 }
