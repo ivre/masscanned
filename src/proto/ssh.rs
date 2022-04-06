@@ -23,6 +23,7 @@ use crate::proto::TCPControlBlock;
 use crate::Masscanned;
 
 pub const SSH_PATTERN_CLIENT_PROTOCOL: &[u8; 7] = b"SSH-2.0";
+pub const SSH_SERVER_BANNER: &[u8; 11] = b"SSH-2.0-1\r\n";
 
 pub fn repl<'a>(
     data: &'a [u8],
@@ -31,7 +32,7 @@ pub fn repl<'a>(
     _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     debug!("receiving SSH data");
-    let repl_data = b"SSH-2.0-1\r\n".to_vec();
+    let repl_data = SSH_SERVER_BANNER.to_vec();
     debug!("sending SSH answer");
     warn!(
         "SSH server banner to {}",

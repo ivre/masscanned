@@ -177,6 +177,8 @@ mod tests {
 
     use crate::logger::MetaLogger;
 
+    use crate::proto::ssh::SSH_SERVER_BANNER;
+
     #[test]
     fn test_proto_dispatch_stun() {
         let mut client_info = ClientInfo::new();
@@ -337,5 +339,42 @@ mod tests {
         if let Some(_) = repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
             panic!("expected no answer, got one");
         }
+    }
+
+    #[test]
+    fn test_proto_repl_ssh() {
+        /* ensure that SSH proto returns a banner after the client's banner
+         * but only once */
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
+        client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
+        client_info.port.src = Some(65000);
+        let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        /***** SEND BANNER A FIRST TIME *****/
+        let payload = b"SSH-2.0-PUTTY";
+        match repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
+            None => { panic!("expected an answer, got nothing") }
+            Some(banner) => { if banner != SSH_SERVER_BANNER { panic!("unexpected banner: {:?}", banner); } }
+        } 
+        /***** SEND ONE ADDITIONAL BYTE *****/
+        let payload = b"X";
+        if let Some(banner) = repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
+            panic!("unexpected banner: {:?}", banner); 
+        } 
+        /***** SEND A SECOND BANNER *****/
+        let payload = b"SSH-2.0-PUTTY";
+        if let Some(banner) = repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
+            panic!("unexpected banner: {:?}", banner); 
+        } 
     }
 }
