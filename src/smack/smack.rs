@@ -1,4 +1,5 @@
 use std::mem;
+use std::convert::TryFrom;
 
 use crate::smack::smack_constants::*;
 use crate::smack::smack_pattern::SmackPattern;
@@ -344,6 +345,50 @@ impl Smack {
         }
         (idx - px_start, row)
     }
+    fn show(&self) {
+        println!("digraph D {{");
+        for row in 0..self.m_state_count {
+            for i in 1..self.symbol_count {
+                let s = self.symbol_to_char[i];
+                let from = {
+                    if row == BASE_STATE {
+                        String::from("BASE")
+                    } else if row == UNANCHORED_STATE {
+                        String::from("UNANCHORED")
+                    } else if row >= self.m_match_limit {
+                        format!("\"{}\"", std::str::from_utf8(&self.m_pattern_list[self.m_match[row].m_ids[0]].pattern).unwrap())
+                    } else {
+                        format!("{}", row).into()
+                    }
+                };
+                let to = {
+                    let dst = self.goto(row, s);
+                    if dst == BASE_STATE {
+                        String::from("BASE")
+                    } else if dst == UNANCHORED_STATE {
+                        String::from("UNANCHORED")
+                    } else if dst >= self.m_match_limit {
+                        format!("\"{}\"", std::str::from_utf8(&self.m_pattern_list[self.m_match[dst].m_ids[0]].pattern).unwrap())
+                    } else {
+                        format!("{}", dst).into()
+                    }
+                };
+                let c = {
+                    if s == CHAR_ANCHOR_START {
+                        String::from("^")
+                    } else if s == CHAR_ANCHOR_END {
+                        String::from("$")
+                    } else if s == b'*'.into() {
+                        String::from("ANY")
+                    } else {
+                        format!("{}", u8::try_from(s).unwrap() as char)
+                    }
+                };
+                println!("  {} -> {} [label=\"{}\"]", from, to, c);
+            }
+        }
+        println!("}}");
+    }
     fn inner_match_shift7(&self, px: Vec<u8>, length: usize, state: usize) -> (usize, usize) {
         let px_start = 0;
         let px_end = length;
@@ -685,6 +730,39 @@ mod tests {
     }
 
     #[test]
+    fn test_wildcard_collision() {
+        let mut smack = Smack::new("test".to_string(), SMACK_CASE_INSENSITIVE);
+        smack.add_pattern(
+            b"ab",
+            0,
+            SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
+        );
+        smack.add_pattern(
+            b"*ab",
+            1,
+            SmackFlags::ANCHOR_BEGIN | SmackFlags::WILDCARDS,
+        );
+        smack.compile();
+        smack.show();
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let id = smack.search_next(&mut state, &b"ab".to_vec(), &mut offset);
+        assert!(id == 0);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let mut id = smack.search_next(&mut state, &b"xab".to_vec(), &mut offset);
+        assert!(id == 1);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let mut id = smack.search_next(&mut state, &b"bab".to_vec(), &mut offset);
+        assert!(id == 1);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let mut id = smack.search_next(&mut state, &b"aab".to_vec(), &mut offset);
+        assert!(id == 1);
+    }
+
+    #[test]
     fn test_multiple_matches() {
         let mut smack = Smack::new("test".to_string(), SMACK_CASE_INSENSITIVE);
         smack.add_pattern(b"aabb", 0, SmackFlags::ANCHOR_BEGIN);
@@ -716,6 +794,10 @@ mod tests {
         let mut state = BASE_STATE;
         let mut offset = 0;
         let id = smack.search_next(&mut state, &b"bac".to_vec(), &mut offset);
+        assert!(id == 1);
+        let mut state = BASE_STATE;
+        let mut offset = 0;
+        let id = smack.search_next(&mut state, &b"aac".to_vec(), &mut offset);
         assert!(id == 1);
     }
 
