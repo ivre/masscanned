@@ -256,16 +256,16 @@ mod tests {
         };
         /***** TEST SSH *****/
         let payloads = [
-            "SSH-2.0-PUTTY",
-            "SSH-2.0-Go",
-            "SSH-2.0-libssh2_1.4.3",
-            "SSH-2.0-PuTTY",
-            "SSH-2.0-AsyncSSH_2.1.0",
-            "SSH-2.0-libssh2_1.9.0",
-            "SSH-2.0-libssh2_1.7.0",
-            "SSH-2.0-8.35 FlowSsh: FlowSshNet_SftpStress54.38.116.473",
-            "SSH-2.0-libssh_0.9.5",
-            "SSH-2.0-OpenSSH_6.7p1 Raspbian-5+deb8u3",
+            "SSH-2.0-PUTTY\r\n",
+            "SSH-2.0-Go\r\n",
+            "SSH-2.0-libssh2_1.4.3\r\n",
+            "SSH-2.0-PuTTY\r\n",
+            "SSH-2.0-AsyncSSH_2.1.0\r\n",
+            "SSH-2.0-libssh2_1.9.0\r\n",
+            "SSH-2.0-libssh2_1.7.0\r\n",
+            "SSH-2.0-8.35 FlowSsh: FlowSshNet_SftpStress54.38.116.473\r\n",
+            "SSH-2.0-libssh_0.9.5\r\n",
+            "SSH-2.0-OpenSSH_6.7p1 Raspbian-5+deb8u3\r\n",
         ];
         for payload in payloads.iter() {
             let _ssh_resp =
