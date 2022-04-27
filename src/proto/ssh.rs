@@ -16,10 +16,9 @@
 
 use log::*;
 
-use std::str;
-
 use crate::client::ClientInfo;
 use crate::proto::TCPControlBlock;
+use crate::utils::byte2str;
 use crate::Masscanned;
 
 pub const SSH_PATTERN_CLIENT_PROTOCOL: &[u8; 7] = b"SSH-2.0";
@@ -33,10 +32,7 @@ pub fn repl<'a>(
     debug!("receiving SSH data");
     let repl_data = b"SSH-2.0-1\r\n".to_vec();
     debug!("sending SSH answer");
-    warn!(
-        "SSH server banner to {}",
-        str::from_utf8(&data).unwrap().trim_end()
-    );
+    warn!("SSH server banner to {}", byte2str(data));
     return Some(repl_data);
 }
 
