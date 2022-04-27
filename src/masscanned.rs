@@ -24,7 +24,7 @@ use std::fs::File;
 use std::net::IpAddr;
 use std::str::FromStr;
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use log::*;
 use pnet::{
     datalink::{self, Channel::Ethernet, DataLinkReceiver, DataLinkSender, NetworkInterface},
@@ -102,7 +102,7 @@ fn reply<'a, 'b>(packet: &'a [u8], masscanned: &Masscanned) -> Option<MutableEth
 
 fn main() {
     /* parse arguments from CLI */
-    let args = App::new("Network responder - answer them all")
+    let args = Command::new("Network responder - answer them all")
         .version(VERSION)
         .about("Network answering machine for various network protocols (L2-L3-L4 + applications)")
         .arg(
