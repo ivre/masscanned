@@ -78,7 +78,11 @@ pub fn repl<'a, 'b>(
                         .expect("error constructing a TCP packet");
                 tcp_repl.set_flags(TcpFlags::ACK);
             }
-            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + (tcp_req.payload().len() as u32));
+            tcp_repl.set_acknowledgement(
+                tcp_req
+                    .get_sequence()
+                    .wrapping_add(tcp_req.payload().len() as u32),
+            );
             tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
         /* Answer to ACK: nothing */
@@ -97,7 +101,7 @@ pub fn repl<'a, 'b>(
             tcp_repl = MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()])
                 .expect("error constructing a TCP packet");
             tcp_repl.set_flags(TcpFlags::FIN | TcpFlags::ACK);
-            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + 1);
+            tcp_repl.set_acknowledgement(tcp_req.get_sequence().wrapping_add(1));
             tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
         /* Answer to SYN */
@@ -106,7 +110,7 @@ pub fn repl<'a, 'b>(
                 .expect("error constructing a TCP packet");
             tcp_repl.set_flags(TcpFlags::ACK);
             tcp_repl.set_flags(TcpFlags::SYN | TcpFlags::ACK);
-            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + 1);
+            tcp_repl.set_acknowledgement(tcp_req.get_sequence().wrapping_add(1));
             /* generate a SYNACK-cookie (same as masscan) */
             tcp_repl.set_sequence(
                 synackcookie::generate(&client_info, &masscanned.synack_key).unwrap(),
@@ -185,7 +189,7 @@ mod tests {
         assert!(tcp_repl.get_flags() == (TcpFlags::FIN | TcpFlags::ACK));
         /* check reply seq and ack */
         assert!(tcp_repl.get_sequence() == ack);
-        assert!(tcp_repl.get_acknowledgement() == seq + 1);
+        assert!(tcp_repl.get_acknowledgement() == seq.wrapping_add(1));
     }
 
     #[test]
