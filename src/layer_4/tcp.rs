@@ -78,7 +78,11 @@ pub fn repl<'a, 'b>(
                         .expect("error constructing a TCP packet");
                 tcp_repl.set_flags(TcpFlags::ACK);
             }
-            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + (tcp_req.payload().len() as u32));
+            tcp_repl.set_acknowledgement(
+                tcp_req
+                    .get_sequence()
+                    .wrapping_add(tcp_req.payload().len() as u32),
+            );
             tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
         /* Answer to ACK: nothing */
@@ -97,7 +101,7 @@ pub fn repl<'a, 'b>(
             tcp_repl = MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()])
                 .expect("error constructing a TCP packet");
             tcp_repl.set_flags(TcpFlags::FIN | TcpFlags::ACK);
-            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + 1);
+            tcp_repl.set_acknowledgement(tcp_req.get_sequence().wrapping_add(1));
             tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
         /* Answer to SYN */
@@ -106,7 +110,7 @@ pub fn repl<'a, 'b>(
                 .expect("error constructing a TCP packet");
             tcp_repl.set_flags(TcpFlags::ACK);
             tcp_repl.set_flags(TcpFlags::SYN | TcpFlags::ACK);
-            tcp_repl.set_acknowledgement(tcp_req.get_sequence() + 1);
+            tcp_repl.set_acknowledgement(tcp_req.get_sequence().wrapping_add(1));
             /* generate a SYNACK-cookie (same as masscan) */
             tcp_repl.set_sequence(
                 synackcookie::generate(&client_info, &masscanned.synack_key).unwrap(),
@@ -185,7 +189,58 @@ mod tests {
         assert!(tcp_repl.get_flags() == (TcpFlags::FIN | TcpFlags::ACK));
         /* check reply seq and ack */
         assert!(tcp_repl.get_sequence() == ack);
-        assert!(tcp_repl.get_acknowledgement() == seq + 1);
+        assert!(tcp_repl.get_acknowledgement() == seq.wrapping_add(1));
+    }
+
+    #[test]
+    fn test_tcp_fin_ack_wrap() {
+        let masscanned = Masscanned {
+            mac: MacAddr(0, 0, 0, 0, 0, 0),
+            ip_addresses: None,
+            synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
+            iface: None,
+            log: MetaLogger::new(),
+        };
+        /* reference */
+        let ip_src = IpAddr::V4(Ipv4Addr::new(27, 198, 143, 1));
+        let ip_dst = IpAddr::V4(Ipv4Addr::new(90, 64, 122, 203));
+        let tcp_sport = 65500;
+        let tcp_dport = 80;
+        let seq = 0xffffffff;
+        let ack = 0xffffffff;
+        let mut client_info = ClientInfo {
+            mac: ClientInfoSrcDst {
+                src: None,
+                dst: None,
+            },
+            ip: ClientInfoSrcDst {
+                src: Some(ip_src),
+                dst: Some(ip_dst),
+            },
+            transport: None,
+            port: ClientInfoSrcDst {
+                src: Some(tcp_sport),
+                dst: Some(tcp_dport),
+            },
+            cookie: None,
+        };
+        let mut tcp_req =
+            MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()]).unwrap();
+        tcp_req.set_source(tcp_sport);
+        tcp_req.set_destination(tcp_dport);
+        tcp_req.set_sequence(seq);
+        tcp_req.set_acknowledgement(ack);
+        tcp_req.set_flags(TcpFlags::FIN | TcpFlags::ACK);
+        let some_tcp_repl = repl(&tcp_req.to_immutable(), &masscanned, &mut client_info);
+        if some_tcp_repl == None {
+            panic!("expected a reply, got none");
+        }
+        let tcp_repl = some_tcp_repl.unwrap();
+        /* check reply flags */
+        assert!(tcp_repl.get_flags() == (TcpFlags::FIN | TcpFlags::ACK));
+        /* check reply seq and ack */
+        assert!(tcp_repl.get_sequence() == ack);
+        assert!(tcp_repl.get_acknowledgement() == seq.wrapping_add(1));
     }
 
     #[test]
