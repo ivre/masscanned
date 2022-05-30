@@ -177,7 +177,7 @@ masscanned = subprocess.Popen(
 sleep(1)
 
 try:
-    result = test_all()
+    result = test_all(masscanned)
 except AssertionError:
     result = -1
 

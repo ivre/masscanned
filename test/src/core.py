@@ -44,9 +44,13 @@ def test(f):
     KO = "\033[1m\033[1;%dmKO\033[0m" % 31
     fname = f.__name__.ljust(50, ".")
 
-    def w():
+    def w(m):
         try:
+            # check that masscanned is still running
+            assert(m.poll() is None), "masscanned not running"
             f()
+            # check that masscanned is still running
+            assert(m.poll() is None), "masscanned terminated unexpectedly"
             LOG.info("{}{}".format(fname, OK))
         except AssertionError as e:
             LOG.error("{}{}: {}".format(fname, KO, e))
@@ -56,11 +60,12 @@ def test(f):
     return w
 
 
-def test_all():
+def test_all(m):
     global ERRORS, TESTS
     # execute tests
     for t in TESTS:
-        t()
+        # perform unit test
+        t(m)
     LOG.info(f"\033[1mRan {len(TESTS)} tests with {len(ERRORS)} errors\033[0m")
     return len(ERRORS)
 
