@@ -28,21 +28,14 @@ from ..core import test, check_ip_checksum, check_ipv6_checksum
 @test
 def test_ipv4_udp_empty():
     for p in [0, 53, 1000]:
-        req = (
-            Ether(dst=MAC_ADDR)
-            / IP(dst=IPV4_ADDR, proto=17)  # UDP
-            / Raw()
-        )
+        req = Ether(dst=MAC_ADDR) / IP(dst=IPV4_ADDR, proto=17) / Raw()  # UDP
         repl = srp1(req, timeout=1)
         assert repl is None, "expecting no answer, got one"
+
 
 @test
 def test_ipv6_udp_empty():
     for p in [0, 53, 1000]:
-        req = (
-            Ether(dst=MAC_ADDR)
-            / IPv6(dst=IPV6_ADDR, nh=17) # UDP
-            / Raw()
-        )
+        req = Ether(dst=MAC_ADDR) / IPv6(dst=IPV6_ADDR, nh=17) / Raw()  # UDP
         repl = srp1(req, timeout=1)
         assert repl is None, "expecting no answer, got one"

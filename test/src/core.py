@@ -47,10 +47,10 @@ def test(f):
     def w(m):
         try:
             # check that masscanned is still running
-            assert(m.poll() is None), "masscanned not running"
+            assert m.poll() is None, "masscanned not running"
             f()
             # check that masscanned is still running
-            assert(m.poll() is None), "masscanned terminated unexpectedly"
+            assert m.poll() is None, "masscanned terminated unexpectedly"
             LOG.info("{}{}".format(fname, OK))
         except AssertionError as e:
             LOG.error("{}{}: {}".format(fname, KO, e))
