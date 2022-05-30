@@ -24,6 +24,27 @@ from scapy.volatile import RandInt
 from ..conf import IPV4_ADDR, IPV6_ADDR, MAC_ADDR
 from ..core import test, check_ip_checksum, check_ipv6_checksum
 
+@test
+def test_ipv4_tcp_empty():
+    for p in [0, 80, 443]:
+        req = (
+            Ether(dst=MAC_ADDR)
+            / IP(dst=IPV4_ADDR, proto=6)  # UDP
+            / Raw()
+        )
+        repl = srp1(req, timeout=1)
+        assert repl is None, "expecting no answer, got one"
+
+@test
+def test_ipv6_tcp_empty():
+    for p in [0, 80, 443]:
+        req = (
+            Ether(dst=MAC_ADDR)
+            / IPv6(dst=IPV6_ADDR, nh=6) # UDP
+            / Raw()
+        )
+        repl = srp1(req, timeout=1)
+        assert repl is None, "expecting no answer, got one"
 
 @test
 def test_tcp_syn():
