@@ -208,10 +208,17 @@ mod tests {
             ip_addresses: Some(&ips),
             log: MetaLogger::new(),
         };
-        for proto in [IpNextHeaderProtocols::Tcp, IpNextHeaderProtocols::Udp, IpNextHeaderProtocols::Icmp] {
-            let mut ip_req =
-                MutableIpv6Packet::owned(vec![0; Ipv6Packet::minimum_packet_size() + payload.len()])
-                    .expect("error constructing IPv6 packet");
+        for proto in [
+            IpNextHeaderProtocols::Tcp,
+            IpNextHeaderProtocols::Udp,
+            IpNextHeaderProtocols::Icmp,
+        ] {
+            let mut ip_req = MutableIpv6Packet::owned(vec![
+                0;
+                Ipv6Packet::minimum_packet_size()
+                    + payload.len()
+            ])
+            .expect("error constructing IPv6 packet");
             ip_req.set_version(6);
             ip_req.set_source(test_ip_addr);
             /* Set test payload for layer 4 */

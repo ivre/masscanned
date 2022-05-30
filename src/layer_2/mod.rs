@@ -231,8 +231,8 @@ mod tests {
         for proto in [EtherTypes::Ipv4, EtherTypes::Ipv6, EtherTypes::Arp] {
             let mut eth_req = MutableEthernetPacket::owned(vec![
                 0;
-                EthernetPacket::minimum_packet_size()
-                    + payload.len()
+                EthernetPacket::minimum_packet_size(
+                ) + payload.len()
             ])
             .expect("error constructing ethernet packet");
             eth_req.set_source(test_mac_addr);

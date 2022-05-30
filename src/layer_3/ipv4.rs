@@ -195,10 +195,17 @@ mod tests {
             ip_addresses: Some(&ips),
             log: MetaLogger::new(),
         };
-        for proto in [IpNextHeaderProtocols::Tcp, IpNextHeaderProtocols::Udp, IpNextHeaderProtocols::Icmp] {
-            let mut ip_req =
-                MutableIpv4Packet::owned(vec![0; Ipv4Packet::minimum_packet_size() + payload.len()])
-                    .expect("error constructing IPv4 packet");
+        for proto in [
+            IpNextHeaderProtocols::Tcp,
+            IpNextHeaderProtocols::Udp,
+            IpNextHeaderProtocols::Icmp,
+        ] {
+            let mut ip_req = MutableIpv4Packet::owned(vec![
+                0;
+                Ipv4Packet::minimum_packet_size()
+                    + payload.len()
+            ])
+            .expect("error constructing IPv4 packet");
             ip_req.set_version(4);
             ip_req.set_ttl(64);
             ip_req.set_identification(0);
