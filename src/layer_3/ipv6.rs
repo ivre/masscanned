@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
+use log::*;
 use std::net::IpAddr;
 
 use pnet::packet::{
@@ -61,8 +62,13 @@ pub fn repl<'a, 'b>(
     match ip_req.get_next_header() {
         /* Answer to ICMPv6 */
         IpNextHeaderProtocols::Icmpv6 => {
-            let icmp_req =
-                Icmpv6Packet::new(ip_req.payload()).expect("error parsing ICMPv6 packet");
+            let icmp_req = if let Some(p) = Icmpv6Packet::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing ICMPv6 packet");
+                masscanned.log.ipv6_drop(&ip_req, &client_info);
+                return None;
+            };
             if let (Some(mut icmp_repl), dst_addr) =
                 layer_4::icmpv6::repl(&icmp_req, masscanned, &client_info)
             {
@@ -92,7 +98,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to TCP */
         IpNextHeaderProtocols::Tcp => {
-            let tcp_req = TcpPacket::new(ip_req.payload()).expect("error parsing TCP packet");
+            let tcp_req = if let Some(p) = TcpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing TCP packet");
+                masscanned.log.ipv6_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut tcp_repl) = layer_4::tcp::repl(&tcp_req, masscanned, &mut client_info) {
                 /* Compute and set TCP checksum */
                 tcp_repl.set_checksum(ipv6_checksum_tcp(
@@ -117,7 +129,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to UDP */
         IpNextHeaderProtocols::Udp => {
-            let udp_req = UdpPacket::new(ip_req.payload()).expect("error parsing UDP packet");
+            let udp_req = if let Some(p) = UdpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing UDP packet");
+                masscanned.log.ipv6_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut udp_repl) = layer_4::udp::repl(&udp_req, masscanned, &mut client_info) {
                 /* Compute and set UDP checksum */
                 udp_repl.set_checksum(ipv6_checksum_udp(

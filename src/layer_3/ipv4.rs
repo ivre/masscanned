@@ -59,7 +59,13 @@ pub fn repl<'a, 'b>(
     match ip_req.get_next_level_protocol() {
         /* Answer to an ICMP packet */
         IpNextHeaderProtocols::Icmp => {
-            let icmp_req = IcmpPacket::new(ip_req.payload()).expect("error parsing ICMP packet");
+            let icmp_req = if let Some(p) = IcmpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing ICMP packet");
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut icmp_repl) = layer_4::icmpv4::repl(&icmp_req, masscanned, &client_info)
             {
                 icmp_repl.set_checksum(ipv4_checksum_icmp(&icmp_repl.to_immutable()));
@@ -79,7 +85,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to a TCP packet */
         IpNextHeaderProtocols::Tcp => {
-            let tcp_req = TcpPacket::new(ip_req.payload()).expect("error parsing TCP packet");
+            let tcp_req = if let Some(p) = TcpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing TCP packet");
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut tcp_repl) = layer_4::tcp::repl(&tcp_req, masscanned, &mut client_info) {
                 tcp_repl.set_checksum(ipv4_checksum_tcp(
                     &tcp_repl.to_immutable(),
@@ -102,7 +114,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to an UDP packet */
         IpNextHeaderProtocols::Udp => {
-            let udp_req = UdpPacket::new(ip_req.payload()).expect("error parsing UDP packet");
+            let udp_req = if let Some(p) = UdpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing UDP packet");
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut udp_repl) = layer_4::udp::repl(&udp_req, masscanned, &mut client_info) {
                 udp_repl.set_checksum(ipv4_checksum_udp(
                     &udp_repl.to_immutable(),

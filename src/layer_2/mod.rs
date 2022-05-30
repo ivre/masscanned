@@ -123,7 +123,13 @@ pub fn reply<'a, 'b>(
     match eth_req.get_ethertype() {
         /* Construct answer to ARP request */
         EtherTypes::Arp => {
-            let arp_req = ArpPacket::new(eth_req.payload()).expect("error parsing ARP packet");
+            let arp_req = if let Some(p) = ArpPacket::new(eth_req.payload()) {
+                p
+            } else {
+                warn!("error parsing ARP packet");
+                masscanned.log.eth_drop(eth_req, &client_info);
+                return None;
+            };
             if let Some(arp_repl) = arp::repl(&arp_req, masscanned) {
                 let arp_len = arp_repl.packet().len();
                 let eth_len = EthernetPacket::minimum_packet_size() + arp_len;
@@ -162,7 +168,13 @@ pub fn reply<'a, 'b>(
         }
         /* Construct answer to IPv6 packet */
         EtherTypes::Ipv6 => {
-            let ipv6_req = Ipv6Packet::new(eth_req.payload()).expect("error parsing IPv6 packet");
+            let ipv6_req = if let Some(p) = Ipv6Packet::new(eth_req.payload()) {
+                p
+            } else {
+                warn!("error parsing IPv6 packet");
+                masscanned.log.eth_drop(eth_req, &client_info);
+                return None;
+            };
             if let Some(ipv6_repl) = layer_3::ipv6::repl(&ipv6_req, masscanned, &mut client_info) {
                 let ipv6_len = ipv6_repl.packet().len();
                 let eth_len = EthernetPacket::minimum_packet_size() + ipv6_len;
