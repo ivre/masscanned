@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
+use log::*;
 use std::net::IpAddr;
 
 use pnet::packet::{
@@ -61,8 +62,13 @@ pub fn repl<'a, 'b>(
     match ip_req.get_next_header() {
         /* Answer to ICMPv6 */
         IpNextHeaderProtocols::Icmpv6 => {
-            let icmp_req =
-                Icmpv6Packet::new(ip_req.payload()).expect("error parsing ICMPv6 packet");
+            let icmp_req = if let Some(p) = Icmpv6Packet::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing ICMPv6 packet");
+                masscanned.log.ipv6_drop(&ip_req, &client_info);
+                return None;
+            };
             if let (Some(mut icmp_repl), dst_addr) =
                 layer_4::icmpv6::repl(&icmp_req, masscanned, &client_info)
             {
@@ -92,7 +98,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to TCP */
         IpNextHeaderProtocols::Tcp => {
-            let tcp_req = TcpPacket::new(ip_req.payload()).expect("error parsing TCP packet");
+            let tcp_req = if let Some(p) = TcpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing TCP packet");
+                masscanned.log.ipv6_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut tcp_repl) = layer_4::tcp::repl(&tcp_req, masscanned, &mut client_info) {
                 /* Compute and set TCP checksum */
                 tcp_repl.set_checksum(ipv6_checksum_tcp(
@@ -117,7 +129,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to UDP */
         IpNextHeaderProtocols::Udp => {
-            let udp_req = UdpPacket::new(ip_req.payload()).expect("error parsing UDP packet");
+            let udp_req = if let Some(p) = UdpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing UDP packet");
+                masscanned.log.ipv6_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut udp_repl) = layer_4::udp::repl(&udp_req, masscanned, &mut client_info) {
                 /* Compute and set UDP checksum */
                 udp_repl.set_checksum(ipv6_checksum_udp(
@@ -169,6 +187,52 @@ mod tests {
     use pnet::util::MacAddr;
 
     use crate::logger::MetaLogger;
+
+    #[test]
+    fn test_ipv6_empty() {
+        let payload = b"";
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv6Addr::new(
+            0x7777, 0x6666, 0x5555, 0x4444, 0x3333, 0x2222, 0x1111, 0x0000,
+        );
+        let masscanned_ip_addr = Ipv6Addr::new(
+            0x0000, 0x1111, 0x2222, 0x3333, 0x4444, 0x5555, 0x6666, 0x7777,
+        );
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V6(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        for proto in [
+            IpNextHeaderProtocols::Tcp,
+            IpNextHeaderProtocols::Udp,
+            IpNextHeaderProtocols::Icmp,
+        ] {
+            let mut ip_req = MutableIpv6Packet::owned(vec![
+                0;
+                Ipv6Packet::minimum_packet_size()
+                    + payload.len()
+            ])
+            .expect("error constructing IPv6 packet");
+            ip_req.set_version(6);
+            ip_req.set_source(test_ip_addr);
+            /* Set test payload for layer 4 */
+            ip_req.set_payload_length(payload.len() as u16);
+            ip_req.set_payload(payload);
+            /* Set next protocol */
+            ip_req.set_next_header(proto);
+            /* Send to a legitimate IP address */
+            ip_req.set_destination(masscanned_ip_addr);
+            if let Some(_) = repl(&ip_req.to_immutable(), &masscanned, &mut client_info) {
+                panic!("expected no IP answer, got one");
+            }
+        }
+    }
 
     #[test]
     fn test_ipv6_reply() {

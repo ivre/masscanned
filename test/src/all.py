@@ -32,6 +32,7 @@ DEFAULT_TESTS = [
     "ssh",
     "stun",
     "tcp",
+    "udp",
 ]
 
 ENABLED_TESTS = DEFAULT_TESTS

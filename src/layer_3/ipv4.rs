@@ -59,7 +59,13 @@ pub fn repl<'a, 'b>(
     match ip_req.get_next_level_protocol() {
         /* Answer to an ICMP packet */
         IpNextHeaderProtocols::Icmp => {
-            let icmp_req = IcmpPacket::new(ip_req.payload()).expect("error parsing ICMP packet");
+            let icmp_req = if let Some(p) = IcmpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing ICMP packet");
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut icmp_repl) = layer_4::icmpv4::repl(&icmp_req, masscanned, &client_info)
             {
                 icmp_repl.set_checksum(ipv4_checksum_icmp(&icmp_repl.to_immutable()));
@@ -79,7 +85,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to a TCP packet */
         IpNextHeaderProtocols::Tcp => {
-            let tcp_req = TcpPacket::new(ip_req.payload()).expect("error parsing TCP packet");
+            let tcp_req = if let Some(p) = TcpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing TCP packet");
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut tcp_repl) = layer_4::tcp::repl(&tcp_req, masscanned, &mut client_info) {
                 tcp_repl.set_checksum(ipv4_checksum_tcp(
                     &tcp_repl.to_immutable(),
@@ -102,7 +114,13 @@ pub fn repl<'a, 'b>(
         }
         /* Answer to an UDP packet */
         IpNextHeaderProtocols::Udp => {
-            let udp_req = UdpPacket::new(ip_req.payload()).expect("error parsing UDP packet");
+            let udp_req = if let Some(p) = UdpPacket::new(ip_req.payload()) {
+                p
+            } else {
+                warn!("error parsing UDP packet");
+                masscanned.log.ipv4_drop(&ip_req, &client_info);
+                return None;
+            };
             if let Some(mut udp_repl) = layer_4::udp::repl(&udp_req, masscanned, &mut client_info) {
                 udp_repl.set_checksum(ipv4_checksum_udp(
                     &udp_repl.to_immutable(),
@@ -160,6 +178,52 @@ mod tests {
     use pnet::util::MacAddr;
 
     use crate::logger::MetaLogger;
+
+    #[test]
+    fn test_ipv4_empty() {
+        let payload = b"";
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
+        let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        for proto in [
+            IpNextHeaderProtocols::Tcp,
+            IpNextHeaderProtocols::Udp,
+            IpNextHeaderProtocols::Icmp,
+        ] {
+            let mut ip_req = MutableIpv4Packet::owned(vec![
+                0;
+                Ipv4Packet::minimum_packet_size()
+                    + payload.len()
+            ])
+            .expect("error constructing IPv4 packet");
+            ip_req.set_version(4);
+            ip_req.set_ttl(64);
+            ip_req.set_identification(0);
+            ip_req.set_flags(Ipv4Flags::DontFragment);
+            ip_req.set_source(test_ip_addr);
+            ip_req.set_header_length(5);
+            /* Set test payload for layer 4 */
+            ip_req.set_total_length(ip_req.packet().len() as u16);
+            ip_req.set_payload(payload);
+            /* Set next protocol */
+            ip_req.set_next_level_protocol(proto);
+            /* Send to a legitimate IP address */
+            ip_req.set_destination(masscanned_ip_addr);
+            if let Some(_) = repl(&ip_req.to_immutable(), &masscanned, &mut client_info) {
+                panic!("expected no IP answer, got one");
+            }
+        }
+    }
 
     #[test]
     fn test_ipv4_reply() {

@@ -123,7 +123,13 @@ pub fn reply<'a, 'b>(
     match eth_req.get_ethertype() {
         /* Construct answer to ARP request */
         EtherTypes::Arp => {
-            let arp_req = ArpPacket::new(eth_req.payload()).expect("error parsing ARP packet");
+            let arp_req = if let Some(p) = ArpPacket::new(eth_req.payload()) {
+                p
+            } else {
+                warn!("error parsing ARP packet");
+                masscanned.log.eth_drop(eth_req, &client_info);
+                return None;
+            };
             if let Some(arp_repl) = arp::repl(&arp_req, masscanned) {
                 let arp_len = arp_repl.packet().len();
                 let eth_len = EthernetPacket::minimum_packet_size() + arp_len;
@@ -162,7 +168,13 @@ pub fn reply<'a, 'b>(
         }
         /* Construct answer to IPv6 packet */
         EtherTypes::Ipv6 => {
-            let ipv6_req = Ipv6Packet::new(eth_req.payload()).expect("error parsing IPv6 packet");
+            let ipv6_req = if let Some(p) = Ipv6Packet::new(eth_req.payload()) {
+                p
+            } else {
+                warn!("error parsing IPv6 packet");
+                masscanned.log.eth_drop(eth_req, &client_info);
+                return None;
+            };
             if let Some(ipv6_repl) = layer_3::ipv6::repl(&ipv6_req, masscanned, &mut client_info) {
                 let ipv6_len = ipv6_repl.packet().len();
                 let eth_len = EthernetPacket::minimum_packet_size() + ipv6_len;
@@ -195,6 +207,43 @@ mod tests {
     use std::str::FromStr;
 
     use crate::logger::MetaLogger;
+
+    #[test]
+    fn test_eth_empty() {
+        let payload = b"";
+        let test_mac_addr =
+            MacAddr::from_str("55:44:33:22:11:00").expect("error parsing MAC address");
+        let mac = MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address");
+        let mut client_info = ClientInfo::new();
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(Ipv4Addr::new(0xaa, 0x99, 0x88, 0x77)));
+        ips.insert(IpAddr::V6(Ipv6Addr::new(
+            0x7777, 0x7777, 0x7777, 0x7777, 0x7777, 0x7777, 0xaabb, 0xccdd,
+        )));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: mac,
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        for proto in [EtherTypes::Ipv4, EtherTypes::Ipv6, EtherTypes::Arp] {
+            let mut eth_req = MutableEthernetPacket::owned(vec![
+                0;
+                EthernetPacket::minimum_packet_size(
+                ) + payload.len()
+            ])
+            .expect("error constructing ethernet packet");
+            eth_req.set_source(test_mac_addr);
+            eth_req.set_payload(payload);
+            eth_req.set_ethertype(proto);
+            eth_req.set_destination(mac);
+            if let Some(_) = reply(&eth_req.to_immutable(), &masscanned, &mut client_info) {
+                panic!("expected no Ethernet answer, got one");
+            }
+        }
+    }
 
     #[test]
     fn test_eth_reply() {
