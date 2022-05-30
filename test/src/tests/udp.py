@@ -14,15 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
-from scapy.layers.inet import IP, UDP
+from scapy.layers.inet import IP
 from scapy.layers.inet6 import IPv6
 from scapy.layers.l2 import Ether
 from scapy.packet import Raw
 from scapy.sendrecv import srp1
-from scapy.volatile import RandInt
 
 from ..conf import IPV4_ADDR, IPV6_ADDR, MAC_ADDR
-from ..core import test, check_ip_checksum, check_ipv6_checksum
+from ..core import test
 
 
 @test
