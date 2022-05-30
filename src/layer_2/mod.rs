@@ -197,6 +197,43 @@ mod tests {
     use crate::logger::MetaLogger;
 
     #[test]
+    fn test_eth_empty() {
+        let payload = b"";
+        let test_mac_addr =
+            MacAddr::from_str("55:44:33:22:11:00").expect("error parsing MAC address");
+        let mac = MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address");
+        let mut client_info = ClientInfo::new();
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(Ipv4Addr::new(0xaa, 0x99, 0x88, 0x77)));
+        ips.insert(IpAddr::V6(Ipv6Addr::new(
+            0x7777, 0x7777, 0x7777, 0x7777, 0x7777, 0x7777, 0xaabb, 0xccdd,
+        )));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: mac,
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        for proto in [EtherTypes::Ipv4, EtherTypes::Ipv6, EtherTypes::Arp] {
+            let mut eth_req = MutableEthernetPacket::owned(vec![
+                0;
+                EthernetPacket::minimum_packet_size()
+                    + payload.len()
+            ])
+            .expect("error constructing ethernet packet");
+            eth_req.set_source(test_mac_addr);
+            eth_req.set_payload(payload);
+            eth_req.set_ethertype(proto);
+            eth_req.set_destination(mac);
+            if let Some(_) = reply(&eth_req.to_immutable(), &masscanned, &mut client_info) {
+                panic!("expected no Ethernet answer, got one");
+            }
+        }
+    }
+
+    #[test]
     fn test_eth_reply() {
         /* test payload is IP(src="3.2.1.0", dst=".".join(str(b) for b in [0xaa, 0x99,
          * 0x88, 0x77]))/ICMP() */

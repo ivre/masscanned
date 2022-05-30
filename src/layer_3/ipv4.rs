@@ -162,6 +162,45 @@ mod tests {
     use crate::logger::MetaLogger;
 
     #[test]
+    fn test_ipv4_empty() {
+        let payload = b"";
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
+        let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V4(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        for proto in [IpNextHeaderProtocols::Tcp, IpNextHeaderProtocols::Udp, IpNextHeaderProtocols::Icmp] {
+            let mut ip_req =
+                MutableIpv4Packet::owned(vec![0; Ipv4Packet::minimum_packet_size() + payload.len()])
+                    .expect("error constructing IPv4 packet");
+            ip_req.set_version(4);
+            ip_req.set_ttl(64);
+            ip_req.set_identification(0);
+            ip_req.set_flags(Ipv4Flags::DontFragment);
+            ip_req.set_source(test_ip_addr);
+            ip_req.set_header_length(5);
+            /* Set test payload for layer 4 */
+            ip_req.set_total_length(ip_req.packet().len() as u16);
+            ip_req.set_payload(payload);
+            /* Set next protocol */
+            ip_req.set_next_level_protocol(proto);
+            /* Send to a legitimate IP address */
+            ip_req.set_destination(masscanned_ip_addr);
+            if let Some(_) = repl(&ip_req.to_immutable(), &masscanned, &mut client_info) {
+                panic!("expected no IP answer, got one");
+            }
+        }
+    }
+
+    #[test]
     fn test_ipv4_reply() {
         /* test payload is scapy> ICMP() */
         let payload = b"\x08\x00\xf7\xff\x00\x00\x00\x00";

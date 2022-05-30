@@ -171,6 +171,45 @@ mod tests {
     use crate::logger::MetaLogger;
 
     #[test]
+    fn test_ipv6_empty() {
+        let payload = b"";
+        let mut client_info = ClientInfo::new();
+        let test_ip_addr = Ipv6Addr::new(
+            0x7777, 0x6666, 0x5555, 0x4444, 0x3333, 0x2222, 0x1111, 0x0000,
+        );
+        let masscanned_ip_addr = Ipv6Addr::new(
+            0x0000, 0x1111, 0x2222, 0x3333, 0x4444, 0x5555, 0x6666, 0x7777,
+        );
+        let mut ips = HashSet::new();
+        ips.insert(IpAddr::V6(masscanned_ip_addr));
+        /* Construct masscanned context object */
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: Some(&ips),
+            log: MetaLogger::new(),
+        };
+        for proto in [IpNextHeaderProtocols::Tcp, IpNextHeaderProtocols::Udp, IpNextHeaderProtocols::Icmp] {
+            let mut ip_req =
+                MutableIpv6Packet::owned(vec![0; Ipv6Packet::minimum_packet_size() + payload.len()])
+                    .expect("error constructing IPv6 packet");
+            ip_req.set_version(6);
+            ip_req.set_source(test_ip_addr);
+            /* Set test payload for layer 4 */
+            ip_req.set_payload_length(payload.len() as u16);
+            ip_req.set_payload(payload);
+            /* Set next protocol */
+            ip_req.set_next_header(proto);
+            /* Send to a legitimate IP address */
+            ip_req.set_destination(masscanned_ip_addr);
+            if let Some(_) = repl(&ip_req.to_immutable(), &masscanned, &mut client_info) {
+                panic!("expected no IP answer, got one");
+            }
+        }
+    }
+
+    #[test]
     fn test_ipv6_reply() {
         /* test payload is scapy> IPv6(src="7777:6666:5555:4444:3333:2222:1111:0000",
          * dst="0000:1111:2222:3333:4444:5555:6666:7777")/TCP(sport=12345, dport=54321,
