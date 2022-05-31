@@ -30,7 +30,8 @@ pub const SMB1_PATTERN_MAGIC: &[u8; 8] = b"\x00\x00**\xffSMB";
 pub const SMB2_PATTERN_MAGIC: &[u8; 8] = b"\x00\x00**\xfeSMB";
 
 // Build/Dissect secblob with Scapy using: GSSAPI_BLOB(b"`\x82.....")
-const SECURITY_BLOB: &[u8; 320] = b"`\x82\x01<\x06\x06+\x06\x01\x05\x05\x02\xa0\x82\x0100\x82\x01,\xa0\x1a0\x18\x06\n+\x06\x01\x04\x01\x827\x02\x02\x1e\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2\x82\x01\x0c\x04\x82\x01\x08NEGOEXTS\x01\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00p\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\xf4Rk\x17\x03\x8aK\x91\xc2\t}\x9a\x8f\xe6,\x96\\Q$/\x90MG\xc7\xad\x8f\x87k\"\x02\xbf\xc6\x00\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08NEGOEXTS\x03\x00\x00\x00\x01\x00\x00\x00@\x00\x00\x00\x98\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08@\x00\x00\x00X\x00\x00\x000V\xa0T0R0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key";
+const SECURITY_BLOB_NEG_PROTO: &[u8] = b"`\x82\x01<\x06\x06+\x06\x01\x05\x05\x02\xa0\x82\x0100\x82\x01,\xa0\x1a0\x18\x06\n+\x06\x01\x04\x01\x827\x02\x02\x1e\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2\x82\x01\x0c\x04\x82\x01\x08NEGOEXTS\x01\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00p\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\xf4Rk\x17\x03\x8aK\x91\xc2\t}\x9a\x8f\xe6,\x96\\Q$/\x90MG\xc7\xad\x8f\x87k\"\x02\xbf\xc6\x00\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08NEGOEXTS\x03\x00\x00\x00\x01\x00\x00\x00@\x00\x00\x00\x98\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08@\x00\x00\x00X\x00\x00\x000V\xa0T0R0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key";
+const SECURITY_BLOB_CHALLENGE: &[u8] = b"\xa1\x81\x9c0\x81\x99\xa0\x03\n\x01\x01\xa1\x0c\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2\x81\x83\x04\x81\x80NTLMSSP\x00\x02\x00\x00\x00\x08\x00\x08\x008\x00\x00\x00\x15\x82\x8a\xe2$\x91\xa8\xf6\xf3\x89-4\x00\x00\x00\x00\x00\x00\x00\x00@\x00@\x00@\x00\x00\x00\n\x00aJ\x00\x00\x00\x0fW\x00I\x00N\x001\x00\x02\x00\x08\x00W\x00I\x00N\x001\x00\x01\x00\x08\x00W\x00I\x00N\x001\x00\x04\x00\x08\x00W\x00I\x00N\x001\x00\x03\x00\x08\x00W\x00I\x00N\x001\x00\x07\x00\x08\x00\xff&9\xf5B\x1d\xd8\x01\x00\x00\x00\x00";
 
 ////////////
 // Common //
@@ -321,10 +322,10 @@ impl SMB1Header {
                 // Negotiate
                 SMB1Payload::NegotiateRequest(SMB1NegotiateRequest::new())
             }
-            // 0x73 => {
-            //     // Setup
-            //     SMB1Payload::SetupRequest(SMB2SetupRequest::new())
-            // }
+            0x73 => {
+                // Setup
+                SMB1Payload::SessionSetupRequest(SMB1SessionSetupRequest::new())
+            }
             _ => None?,
         });
         self.payload.as_mut()
@@ -445,51 +446,195 @@ impl MPacket for SMB1NegotiateRequest {
         resp.extend_from_slice(&time.to_le_bytes()); // ServerTime
         resp.extend_from_slice(&0x3c_u16.to_le_bytes()); // ServerTimeZone
         resp.push(0); // ChallengeLength
-        resp.extend_from_slice(&((SECURITY_BLOB.len() + 16) as u16).to_le_bytes()); // ByteCount
-                                                                                    // Challenge: Empty
+        resp.extend_from_slice(&((SECURITY_BLOB_NEG_PROTO.len() + 16) as u16).to_le_bytes()); // ByteCount
+                                                                                              // Challenge: Empty
         resp.extend_from_slice(&[0_u8; 16]); // GUID
-        resp.extend_from_slice(SECURITY_BLOB); // SecurityBlob
+        resp.extend_from_slice(SECURITY_BLOB_NEG_PROTO); // SecurityBlob
         warn!("SMB1 Negotiate-Protocol-Reply ({})", dialect_name);
         Some(resp)
     }
 }
 
-// #[derive(Debug, Clone)]
-// struct SMB1SetupRequest {
-//
-// }
+#[derive(Debug, Clone, Copy)]
+enum SMB1SessionSetupRequestState {
+    WordCount,
+    AndXCommand,
+    AndXReserved,
+    AndXOffset,
+    MaxBufferSize,
+    MaxMPXCount,
+    VcNumber,
+    SessionKey,
+    SecurityBlobLength,
+    Reserved,
+    ServerCapabilities,
+    ByteCount,
+    SecurityBlob,
+    End,
+}
 
-// impl SMB1SetupRequest {
-//     // TODO
-//     fn new(data: &[u8]) -> Option<Self> {
-//         if data.len() < 38 {
-//             return None;
-//         }
-//         None
-//     }
+#[derive(Debug, Clone)]
+struct SMB1SessionSetupRequest {
+    // DISSECTION
+    d: PacketDissector<SMB1SessionSetupRequestState>,
+    // STRUCT
+    word_count: u8,
+    and_x_command: u8,
+    and_x_offset: u16,
+    max_buffer_size: u16,
+    max_mpx_count: u16,
+    vc_number: u16,
+    session_key: u32,
+    security_len: u16,
+    server_capabilities: u32,
+    byte_count: u16,
+}
 
-//     fn repl(&self) -> Option<Vec<u8>> {
-//         None
-//     }
-// }
+impl MPacket for SMB1SessionSetupRequest {
+    fn new() -> SMB1SessionSetupRequest {
+        Self {
+            d: PacketDissector::new(SMB1SessionSetupRequestState::WordCount),
+            word_count: 0,
+            and_x_command: 0,
+            and_x_offset: 0,
+            max_buffer_size: 0,
+            max_mpx_count: 0,
+            vc_number: 0,
+            session_key: 0,
+            security_len: 0,
+            server_capabilities: 0,
+            byte_count: 0,
+        }
+    }
+    fn parse(&mut self, byte: &u8) {
+        // We expect extended security because that's what we asked for in the NegotiateRequest
+        match self.d.state {
+            SMB1SessionSetupRequestState::WordCount => {
+                self.word_count = *byte;
+                self.d.next_state(SMB1SessionSetupRequestState::AndXCommand);
+            }
+            SMB1SessionSetupRequestState::AndXCommand => {
+                self.and_x_command = *byte;
+                self.d
+                    .next_state(SMB1SessionSetupRequestState::AndXReserved);
+            }
+            SMB1SessionSetupRequestState::AndXReserved => {
+                self.d.next_state(SMB1SessionSetupRequestState::AndXOffset);
+            }
+            SMB1SessionSetupRequestState::AndXOffset => {
+                self.and_x_offset = self.d.read_ule16(
+                    byte,
+                    self.and_x_offset,
+                    SMB1SessionSetupRequestState::MaxBufferSize,
+                );
+            }
+            SMB1SessionSetupRequestState::MaxBufferSize => {
+                self.max_buffer_size = self.d.read_ule16(
+                    byte,
+                    self.max_buffer_size,
+                    SMB1SessionSetupRequestState::MaxMPXCount,
+                );
+            }
+            SMB1SessionSetupRequestState::MaxMPXCount => {
+                self.max_mpx_count = self.d.read_ule16(
+                    byte,
+                    self.max_mpx_count,
+                    SMB1SessionSetupRequestState::VcNumber,
+                );
+            }
+            SMB1SessionSetupRequestState::VcNumber => {
+                self.vc_number = self.d.read_ule16(
+                    byte,
+                    self.vc_number,
+                    SMB1SessionSetupRequestState::SessionKey,
+                );
+            }
+            SMB1SessionSetupRequestState::SessionKey => {
+                self.session_key = self.d.read_ule32(
+                    byte,
+                    self.session_key,
+                    SMB1SessionSetupRequestState::SecurityBlobLength,
+                );
+            }
+            SMB1SessionSetupRequestState::SecurityBlobLength => {
+                self.security_len = self.d.read_ule16(
+                    byte,
+                    self.security_len,
+                    SMB1SessionSetupRequestState::Reserved,
+                );
+            }
+            SMB1SessionSetupRequestState::Reserved => {
+                self.d.i += 1;
+                self.d
+                    .next_state_when_i_reaches(SMB1SessionSetupRequestState::ServerCapabilities, 4);
+            }
+            SMB1SessionSetupRequestState::ServerCapabilities => {
+                self.server_capabilities = self.d.read_ule32(
+                    byte,
+                    self.server_capabilities,
+                    SMB1SessionSetupRequestState::ByteCount,
+                );
+            }
+            SMB1SessionSetupRequestState::ByteCount => {
+                self.byte_count = self.d.read_ule16(
+                    byte,
+                    self.byte_count,
+                    SMB1SessionSetupRequestState::SecurityBlob,
+                );
+            }
+            SMB1SessionSetupRequestState::SecurityBlob => {
+                self.d.i += 1;
+                self.d.next_state_when_i_reaches(
+                    SMB1SessionSetupRequestState::End,
+                    self.security_len as usize,
+                );
+            }
+            SMB1SessionSetupRequestState::End => {}
+        }
+    }
+    fn repl(&self) -> Option<Vec<u8>> {
+        if !matches!(self.d.state, SMB1SessionSetupRequestState::End) {
+            return None;
+        }
+        // "Windows 4.0" in UTF-16 + two null bytes
+        let native_os = b"W\x00i\x00n\x00d\x00o\x00w\x00s\x00 \x004\x00.\x000\x00\x00\x00";
+        let native_man_lan = native_os;
+        let mut resp: Vec<u8> = Vec::new();
+        resp.push(0x4); // WordCount
+        resp.push(0xff); // AndXCommand
+        resp.push(0x0); // AndXReserved
+        resp.extend_from_slice(&0x44_u16.to_le_bytes()); // AndXOffset
+        resp.extend_from_slice(&0x0_u16.to_le_bytes()); // Action
+        resp.extend_from_slice(&(SECURITY_BLOB_CHALLENGE.len() as u16).to_le_bytes()); // SecurityLen
+        resp.extend_from_slice(
+            &((SECURITY_BLOB_CHALLENGE.len() + native_os.len() + native_man_lan.len()) as u16)
+                .to_le_bytes(),
+        ); // ByteCount
+        resp.extend_from_slice(SECURITY_BLOB_CHALLENGE); // SecurityBlob
+        resp.extend_from_slice(native_os);
+        resp.extend_from_slice(native_man_lan);
+        warn!("SMB1 SessionSetup-Reply");
+        Some(resp)
+    }
+}
 
 #[derive(Debug, Clone)]
 enum SMB1Payload {
     NegotiateRequest(SMB1NegotiateRequest),
-    // SetupRequest(SMB1SetupRequest),
+    SessionSetupRequest(SMB1SessionSetupRequest),
 }
 
 impl SMB1Payload {
     fn repl(&self) -> Option<Vec<u8>> {
         match self {
             SMB1Payload::NegotiateRequest(x) => x.repl(),
-            // SMB1Payload::SetupRequest(x) => x.repl(),
+            SMB1Payload::SessionSetupRequest(x) => x.repl(),
         }
     }
     fn parse(&mut self, byte: &u8) {
         match self {
             SMB1Payload::NegotiateRequest(x) => x.parse(byte),
-            // SMB1Payload::SetupRequest(x) => x.repl(),
+            SMB1Payload::SessionSetupRequest(x) => x.parse(byte),
         }
     }
 }
@@ -663,7 +808,7 @@ impl SMB2Header {
             }
             0x0001 => {
                 // Setup
-                SMB2Payload::SetupRequest(SMB2SetupRequest::new())
+                SMB2Payload::SessionSetupRequest(SMB2SessionSetupRequest::new())
             }
             _ => None?,
         });
@@ -822,9 +967,9 @@ impl MPacket for SMB2NegotiateRequest {
         resp.extend_from_slice(&time.to_le_bytes()); // ServerTime
         resp.extend_from_slice(&time.to_le_bytes()); // ServerStartTime
         resp.extend_from_slice(&0x80_u16.to_le_bytes()); // SecurityBloboffset
-        resp.extend_from_slice(&(SECURITY_BLOB.len() as u16).to_le_bytes()); // SecurityBlobLength
+        resp.extend_from_slice(&(SECURITY_BLOB_NEG_PROTO.len() as u16).to_le_bytes()); // SecurityBlobLength
         resp.extend_from_slice(&0x0_u32.to_le_bytes()); // NegotiateContextOffset
-        resp.extend_from_slice(SECURITY_BLOB); // SecurityBlobw
+        resp.extend_from_slice(SECURITY_BLOB_NEG_PROTO); // SecurityBlob
         warn!("SMB2 Negotiate-Protocol-Reply ({})", dialect_name);
         Some(resp)
     }
@@ -845,7 +990,7 @@ enum SMB2SetupRequestState {
 }
 
 #[derive(Debug, Clone)]
-struct SMB2SetupRequest {
+struct SMB2SessionSetupRequest {
     // DISSECTION
     d: PacketDissector<SMB2SetupRequestState>,
     // STRUCT
@@ -858,9 +1003,9 @@ struct SMB2SetupRequest {
     security_len: u16,
     previous_session_id: u64,
 }
-impl MPacket for SMB2SetupRequest {
+impl MPacket for SMB2SessionSetupRequest {
     fn new() -> Self {
-        SMB2SetupRequest {
+        SMB2SessionSetupRequest {
             d: PacketDissector::new(SMB2SetupRequestState::StructureSize),
             structure_size: 0,
             flags: 0,
@@ -922,35 +1067,48 @@ impl MPacket for SMB2SetupRequest {
                 );
             }
             SMB2SetupRequestState::SecurityBlob => {
-                // TODO ? Not super useful TBH, also this is ASN.1 :///
-                self.d.next_state(SMB2SetupRequestState::End);
+                self.d.i += 1;
+                self.d.next_state_when_i_reaches(
+                    SMB2SetupRequestState::End,
+                    self.security_len as usize,
+                );
             }
             SMB2SetupRequestState::End => {}
         }
     }
 
     fn repl(&self) -> Option<Vec<u8>> {
-        None
+        if !matches!(self.d.state, SMB2SetupRequestState::End) {
+            return None;
+        }
+        let mut resp: Vec<u8> = Vec::new();
+        resp.extend_from_slice(&0x9_u16.to_le_bytes()); // StructureSize
+        resp.extend_from_slice(&0x0_u16.to_le_bytes()); // SessionFlags
+        resp.extend_from_slice(&0x48_u16.to_le_bytes()); // SecurityBufferOffset
+        resp.extend_from_slice(&(SECURITY_BLOB_CHALLENGE.len() as u16).to_le_bytes()); // SecurityLen
+        resp.extend_from_slice(SECURITY_BLOB_CHALLENGE); // SecurityBlob
+        warn!("SMB2 SessionSetup-Reply");
+        Some(resp)
     }
 }
 
 #[derive(Debug, Clone)]
 enum SMB2Payload {
     NegotiateRequest(SMB2NegotiateRequest),
-    SetupRequest(SMB2SetupRequest),
+    SessionSetupRequest(SMB2SessionSetupRequest),
 }
 
 impl SMB2Payload {
     fn repl(&self) -> Option<Vec<u8>> {
         match self {
             SMB2Payload::NegotiateRequest(x) => x.repl(),
-            SMB2Payload::SetupRequest(x) => x.repl(),
+            SMB2Payload::SessionSetupRequest(x) => x.repl(),
         }
     }
     fn parse(&mut self, byte: &u8) {
         match self {
             SMB2Payload::NegotiateRequest(x) => x.parse(byte),
-            SMB2Payload::SetupRequest(x) => x.parse(byte),
+            SMB2Payload::SessionSetupRequest(x) => x.parse(byte),
         }
     }
 }
@@ -999,15 +1157,17 @@ mod tests {
     use std::str::FromStr;
 
     // Sent by `smbclient -U "" -N -L 10.1.1.1 -d10 --option='client min protocol=NT1'`
-    const SMB1_REQ_PAYLOAD: &[u8] = b"\x00\x00\x00T\xffSMBr\x00\x00\x00\x00\x18C\xc8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfe\xff\x00\x00\x00\x00\x001\x00\x02NT LANMAN 1.0\x00\x02NT LM 0.12\x00\x02SMB 2.002\x00\x02SMB 2.???\x00";
+    const SMB1_REQ_NEGOTIATE: &[u8] = b"\x00\x00\x00T\xffSMBr\x00\x00\x00\x00\x18C\xc8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfe\xff\x00\x00\x00\x00\x001\x00\x02NT LANMAN 1.0\x00\x02NT LM 0.12\x00\x02SMB 2.002\x00\x02SMB 2.???\x00";
+    const SMB1_REQ_SESSION_SETUP: &[u8] = b"\x00\x00\x00\x9c\xffSMBs\x00\x00\x00\x00\x18C\xc8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x89T\x00\x00\x01\x00\x0c\xff\x00\x00\x00\xff\xff\x02\x00\x01\x00\x00\x00\x00\x00J\x00\x00\x00\x00\x00T\xc0\x00\x80a\x00`H\x06\x06+\x06\x01\x05\x05\x02\xa0>0<\xa0\x0e0\x0c\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2*\x04(NTLMSSP\x00\x01\x00\x00\x00\x15\x82\x08b\x00\x00\x00\x00(\x00\x00\x00\x00\x00\x00\x00(\x00\x00\x00\x06\x01\x00\x00\x00\x00\x00\x0f\x00U\x00n\x00i\x00x\x00\x00\x00S\x00a\x00m\x00b\x00a\x00\x00\x00";
     // Sent by `smbclient -U "" -N -L 10.1.1.1 -d10`
-    const SMB2_REQ_PAYLOAD: &[u8] = b"\x00\x00\x00\xd0\xfeSMB@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$\x00\x08\x00\x01\x00\x00\x00\x7f\x00\x00\x00\rr3\x97\"c\x8fA\x9f\xe0\xbawQ\x87rbx\x00\x00\x00\x03\x00\x00\x00\x02\x02\x10\x02\"\x02$\x02\x00\x03\x02\x03\x10\x03\x11\x03\x00\x00\x00\x00\x01\x00&\x00\x00\x00\x00\x00\x01\x00 \x00\x01\x00\xd5Z\x89\x87>\x80\xcd\x02\xc2\xab\x08\xa3\xf4\x94\xb6A\x05\x11V\xeeE\x19p\x19\xed\x17v\xda\x9b\x08\x99V\x00\x00\x02\x00\x06\x00\x00\x00\x00\x00\x02\x00\x02\x00\x01\x00\x00\x00\x05\x00\x10\x00\x00\x00\x00\x001\x000\x00.\x001\x00.\x001\x00.\x001\x00";
+    const SMB2_REQ_NEGOTIATE: &[u8] = b"\x00\x00\x00\xd0\xfeSMB@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$\x00\x08\x00\x01\x00\x00\x00\x7f\x00\x00\x00\rr3\x97\"c\x8fA\x9f\xe0\xbawQ\x87rbx\x00\x00\x00\x03\x00\x00\x00\x02\x02\x10\x02\"\x02$\x02\x00\x03\x02\x03\x10\x03\x11\x03\x00\x00\x00\x00\x01\x00&\x00\x00\x00\x00\x00\x01\x00 \x00\x01\x00\xd5Z\x89\x87>\x80\xcd\x02\xc2\xab\x08\xa3\xf4\x94\xb6A\x05\x11V\xeeE\x19p\x19\xed\x17v\xda\x9b\x08\x99V\x00\x00\x02\x00\x06\x00\x00\x00\x00\x00\x02\x00\x02\x00\x01\x00\x00\x00\x05\x00\x10\x00\x00\x00\x00\x001\x000\x00.\x001\x00.\x001\x00.\x001\x00";
+    const SMB2_REQ_SESSION_SETUP: &[u8] = b"\x00\x00\x00\xa2\xfeSMB@\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x19\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00X\x00J\x00\x00\x00\x00\x00\x00\x00\x00\x00`H\x06\x06+\x06\x01\x05\x05\x02\xa0>0<\xa0\x0e0\x0c\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2*\x04(NTLMSSP\x00\x01\x00\x00\x00\x15\x82\x08b\x00\x00\x00\x00(\x00\x00\x00\x00\x00\x00\x00(\x00\x00\x00\x06\x01\x00\x00\x00\x00\x00\x0f";
     // You can dissect any of those payloads with Scapy using NBTSession(b"...")
 
     #[test]
     fn test_smb1_protocol_nego_parsing() {
         let mut nbtsession: NBTSession<SMB1Header> = NBTSession::new();
-        nbtsession.parse_all(SMB1_REQ_PAYLOAD);
+        nbtsession.parse_all(SMB1_REQ_NEGOTIATE);
         assert_eq!(nbtsession.nb_type, 0);
         assert_eq!(nbtsession.length, 0x54);
         let smb1 = nbtsession.payload.expect("Error while unpacking SMB");
@@ -1024,6 +1184,7 @@ mod tests {
         assert_eq!(smb1.mid, 0);
         let neg_request = match smb1.payload.expect("Error while reading payload") {
             SMB1Payload::NegotiateRequest(x) => x,
+            _ => panic!("Bad payload"),
         };
         assert_eq!(neg_request.word_count, 0);
         assert_eq!(neg_request.byte_count, 49);
@@ -1059,8 +1220,8 @@ mod tests {
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
-        let answer =
-            repl_smb1(SMB1_REQ_PAYLOAD, &masscanned, &client_info, None).expect("Error: no answer");
+        let answer = repl_smb1(SMB1_REQ_NEGOTIATE, &masscanned, &client_info, None)
+            .expect("Error: no answer");
         let expected = [
             0, 0, 1, 149, 255, 83, 77, 66, 114, 0, 0, 0, 0, 152, 7, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 254, 255, 0, 0, 0, 0, 17, 1, 0, 3, 50, 0, 50, 0, 0, 0, 1, 0, 0, 0, 1, 0,
@@ -1086,9 +1247,68 @@ mod tests {
         assert_eq!(answer[0x3c + 8..], expected[0x3c + 8..]);
     }
     #[test]
+    fn test_smb1_session_setup_request_parse() {
+        let mut nbtsession: NBTSession<SMB1Header> = NBTSession::new();
+        nbtsession.parse_all(SMB1_REQ_SESSION_SETUP);
+        assert_eq!(nbtsession.nb_type, 0);
+        assert_eq!(nbtsession.length, 0x9c);
+        let smb1 = nbtsession.payload.expect("Error while unpacking SMB");
+        assert_eq!(&smb1.start, b"\xffSMB");
+        assert_eq!(smb1.command, 0x73);
+        assert_eq!(smb1.status, 0);
+        assert_eq!(smb1.flags, 24);
+        assert_eq!(smb1.flags2, 0xc843);
+        assert_eq!(smb1.pid_high, 0);
+        assert_eq!(smb1.tid, 0);
+        assert_eq!(smb1.pid_low, 21641);
+        assert_eq!(smb1.uid, 0);
+        assert_eq!(smb1.mid, 1);
+        let sess_setup_req = match smb1.payload.expect("Error while reading payload") {
+            SMB1Payload::SessionSetupRequest(x) => x,
+            _ => panic!("Bad type"),
+        };
+        assert_eq!(sess_setup_req.word_count, 12);
+        assert_eq!(sess_setup_req.and_x_command, 0xff);
+        assert_eq!(sess_setup_req.and_x_offset, 0);
+        assert_eq!(sess_setup_req.max_buffer_size, 0xffff);
+        assert_eq!(sess_setup_req.max_mpx_count, 2);
+        assert_eq!(sess_setup_req.vc_number, 1);
+        assert_eq!(sess_setup_req.session_key, 0);
+        assert_eq!(sess_setup_req.security_len, 74);
+        assert_eq!(sess_setup_req.server_capabilities, 0x8000c054);
+        assert_eq!(sess_setup_req.server_capabilities, 0x8000c054);
+    }
+    #[test]
+    fn test_smb1_session_setup_request_reply() {
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
+            iface: None,
+            ip_addresses: None,
+            log: MetaLogger::new(),
+        };
+        let client_info = ClientInfo::new();
+        let answer = repl_smb1(SMB1_REQ_SESSION_SETUP, &masscanned, &client_info, None)
+            .expect("Error: no answer");
+        let expected = [
+            0, 0, 0, 250, 255, 83, 77, 66, 115, 0, 0, 0, 0, 152, 7, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 137, 84, 0, 0, 1, 0, 4, 255, 0, 68, 0, 0, 0, 159, 0, 207, 0, 161, 129,
+            156, 48, 129, 153, 160, 3, 10, 1, 1, 161, 12, 6, 10, 43, 6, 1, 4, 1, 130, 55, 2, 2, 10,
+            162, 129, 131, 4, 129, 128, 78, 84, 76, 77, 83, 83, 80, 0, 2, 0, 0, 0, 8, 0, 8, 0, 56,
+            0, 0, 0, 21, 130, 138, 226, 36, 145, 168, 246, 243, 137, 45, 52, 0, 0, 0, 0, 0, 0, 0,
+            0, 64, 0, 64, 0, 64, 0, 0, 0, 10, 0, 97, 74, 0, 0, 0, 15, 87, 0, 73, 0, 78, 0, 49, 0,
+            2, 0, 8, 0, 87, 0, 73, 0, 78, 0, 49, 0, 1, 0, 8, 0, 87, 0, 73, 0, 78, 0, 49, 0, 4, 0,
+            8, 0, 87, 0, 73, 0, 78, 0, 49, 0, 3, 0, 8, 0, 87, 0, 73, 0, 78, 0, 49, 0, 7, 0, 8, 0,
+            255, 38, 57, 245, 66, 29, 216, 1, 0, 0, 0, 0, 87, 0, 105, 0, 110, 0, 100, 0, 111, 0,
+            119, 0, 115, 0, 32, 0, 52, 0, 46, 0, 48, 0, 0, 0, 87, 0, 105, 0, 110, 0, 100, 0, 111,
+            0, 119, 0, 115, 0, 32, 0, 52, 0, 46, 0, 48, 0, 0, 0,
+        ];
+        assert_eq!(answer, expected);
+    }
+    #[test]
     fn test_smb2_protocol_nego_parsing() {
         let mut nbtsession: NBTSession<SMB2Header> = NBTSession::new();
-        nbtsession.parse_all(SMB2_REQ_PAYLOAD);
+        nbtsession.parse_all(SMB2_REQ_NEGOTIATE);
         assert_eq!(nbtsession.nb_type, 0);
         assert_eq!(nbtsession.length, 0xd0);
         let smb2 = nbtsession.payload.expect("No SMB2 payload found !");
@@ -1131,8 +1351,8 @@ mod tests {
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
-        let answer =
-            repl_smb2(SMB2_REQ_PAYLOAD, &masscanned, &client_info, None).expect("Error: no answer");
+        let answer = repl_smb2(SMB2_REQ_NEGOTIATE, &masscanned, &client_info, None)
+            .expect("Error: no answer");
         let expected = [
             0, 0, 1, 192, 254, 83, 77, 66, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1157,5 +1377,55 @@ mod tests {
         ];
         assert_eq!(answer[..0x6c], expected[..0x6c]); // Test equality except the 2 "ServerTime" fields
         assert_eq!(answer[0x6c + 16..], expected[0x6c + 16..]);
+    }
+    #[test]
+    fn test_smb2_session_setup_request_parse() {
+        let mut nbtsession: NBTSession<SMB2Header> = NBTSession::new();
+        nbtsession.parse_all(SMB2_REQ_SESSION_SETUP);
+        assert_eq!(nbtsession.nb_type, 0);
+        assert_eq!(nbtsession.length, 0xa2);
+        let smb2 = nbtsession.payload.expect("Error while unpacking SMB");
+        assert_eq!(&smb2.start, b"\xfeSMB");
+        assert_eq!(smb2.command, 1);
+        assert_eq!(smb2.status, 0);
+        assert_eq!(smb2.flags, 0);
+        let sess_setup_req = match smb2.payload.expect("Error while reading payload") {
+            SMB2Payload::SessionSetupRequest(x) => x,
+            _ => panic!("Bad type"),
+        };
+        assert_eq!(sess_setup_req.structure_size, 0x19);
+        assert_eq!(sess_setup_req.flags, 0);
+        assert_eq!(sess_setup_req.security_mode, 1);
+        assert_eq!(sess_setup_req.capabilities, 1);
+        assert_eq!(sess_setup_req.channel, 0);
+        assert_eq!(sess_setup_req.security_buffer_offset, 0x58);
+        assert_eq!(sess_setup_req.security_len, 74);
+        assert_eq!(sess_setup_req.previous_session_id, 0);
+    }
+    #[test]
+    fn test_smb2_session_setup_request_reply() {
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
+            iface: None,
+            ip_addresses: None,
+            log: MetaLogger::new(),
+        };
+        let client_info = ClientInfo::new();
+        let answer = repl_smb2(SMB2_REQ_SESSION_SETUP, &masscanned, &client_info, None)
+            .expect("Error: no answer");
+        let expected = [
+            0, 0, 0, 231, 254, 83, 77, 66, 64, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0,
+            0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 72, 0, 159, 0, 161, 129, 156, 48,
+            129, 153, 160, 3, 10, 1, 1, 161, 12, 6, 10, 43, 6, 1, 4, 1, 130, 55, 2, 2, 10, 162,
+            129, 131, 4, 129, 128, 78, 84, 76, 77, 83, 83, 80, 0, 2, 0, 0, 0, 8, 0, 8, 0, 56, 0, 0,
+            0, 21, 130, 138, 226, 36, 145, 168, 246, 243, 137, 45, 52, 0, 0, 0, 0, 0, 0, 0, 0, 64,
+            0, 64, 0, 64, 0, 0, 0, 10, 0, 97, 74, 0, 0, 0, 15, 87, 0, 73, 0, 78, 0, 49, 0, 2, 0, 8,
+            0, 87, 0, 73, 0, 78, 0, 49, 0, 1, 0, 8, 0, 87, 0, 73, 0, 78, 0, 49, 0, 4, 0, 8, 0, 87,
+            0, 73, 0, 78, 0, 49, 0, 3, 0, 8, 0, 87, 0, 73, 0, 78, 0, 49, 0, 7, 0, 8, 0, 255, 38,
+            57, 245, 66, 29, 216, 1, 0, 0, 0, 0,
+        ];
+        assert_eq!(answer, expected);
     }
 }
