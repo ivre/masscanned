@@ -21,7 +21,8 @@ use crate::proto::TCPControlBlock;
 use crate::utils::byte2str;
 use crate::Masscanned;
 
-pub const SSH_PATTERN_CLIENT_PROTOCOL: &[u8; 7] = b"SSH-2.0";
+pub const SSH_PATTERN_CLIENT_PROTOCOL_2: &[u8; 7] = b"SSH-2.0";
+pub const SSH_PATTERN_CLIENT_PROTOCOL_1: &[u8; 8] = b"SSH-1.99";
 
 const SSH_STATE_START: usize = 0;
 const SSH_STATE_S1: usize = 1;
@@ -177,7 +178,7 @@ pub fn repl<'a>(
     debug!("sending SSH answer");
     warn!(
         "SSH server banner to {}",
-        str::from_utf8(&pstate.ssh_software).unwrap().trim_end()
+        std::str::from_utf8(&pstate.ssh_software).unwrap().trim_end()
     );
     Some(repl_data)
 }
@@ -187,7 +188,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ssh_banner_parse() {
+    fn ssh_2_banner_parse() {
         /* all at once */
         let test_banner = b"SSH-2.0-SOFTWARE COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -223,7 +224,43 @@ mod tests {
     }
 
     #[test]
-    fn test_ssh_banner_space() {
+    fn ssh_1_banner_parse() {
+        /* all at once */
+        let test_banner = b"SSH-1.99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COMMENT");
+        /* byte by byte */
+        let test_banner = b"SSH-1.99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        for i in 0..test_banner.len() {
+            if i == 0 {
+                assert!(pstate.state == SSH_STATE_START);
+            } else if i > 0 && i < 4 {
+                assert!(pstate.state == SSH_STATE_S1 + i);
+            } else if i >= 4 && i < 9 {
+                assert!(pstate.state == SSH_STATE_VERSION);
+            } else if i >= 9 && i < 18 {
+                assert!(pstate.state == SSH_STATE_SOFTWARE);
+            } else if i >= 18 && i < test_banner.len() - 1 {
+                assert!(pstate.state == SSH_STATE_COMMENT);
+            } else {
+                assert!(pstate.state == SSH_STATE_LF);
+            }
+            ssh_parse(&mut pstate, &test_banner[i..i + 1]);
+        }
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COMMENT");
+    }
+
+    #[test]
+    fn ssh_2_banner_space() {
         /* space in SSH */
         let test_banner = b"S SH-2.0-SOFTWARE COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -266,7 +303,50 @@ mod tests {
     }
 
     #[test]
-    fn test_ssh_banner_cr() {
+    fn ssh_1_banner_space() {
+        /* space in SSH */
+        let test_banner = b"S SH-1.99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* space in VERSION */
+        let test_banner = b"SSH-1. 99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* space in software */
+        let test_banner = b"SSH-1.99-SOFT WARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFT");
+        assert!(pstate.ssh_comment == b"WARE COMMENT");
+        /* space in comment */
+        let test_banner = b"SSH-1.99-SOFTWARE COM MENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COM MENT");
+        /* double space */
+        let test_banner = b"SSH-1.99-SOFTWARE  COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b" COMMENT");
+    }
+
+    #[test]
+    fn ssh_2_banner_cr() {
         /* CR in SSH */
         let test_banner = b"S\rSH-2.0-SOFTWARE COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -309,7 +389,50 @@ mod tests {
     }
 
     #[test]
-    fn test_ssh_banner_lf() {
+    fn ssh_1_banner_cr() {
+        /* CR in SSH */
+        let test_banner = b"S\rSH-1.99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* CR in VERSION */
+        let test_banner = b"SSH-1.\r99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* CR in SOFTWARE */
+        let test_banner = b"SSH-1.99-SOFT\rWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFT\rWARE");
+        assert!(pstate.ssh_comment == b"COMMENT");
+        /* CR in COMMENT */
+        let test_banner = b"SSH-1.99-SOFTWARE COM\rMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COM\rMENT");
+        /* CR at the end */
+        let test_banner = b"SSH-1.99-SOFTWARE COMMENT\r\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COMMENT\r");
+    }
+
+    #[test]
+    fn ssh_2_banner_lf() {
         /* LF in SSH */
         let test_banner = b"S\nSH-2.0-SOFTWARE COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -352,7 +475,50 @@ mod tests {
     }
 
     #[test]
-    fn test_ssh_banner_crlf() {
+    fn ssh_1_banner_lf() {
+        /* LF in SSH */
+        let test_banner = b"S\nSH-1.99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* LF in VERSION */
+        let test_banner = b"SSH-1.\n99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* LF in SOFTWARE */
+        let test_banner = b"SSH-1.99-SOFT\nWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFT\nWARE");
+        assert!(pstate.ssh_comment == b"COMMENT");
+        /* LF in COMMENT */
+        let test_banner = b"SSH-1.99-SOFTWARE COM\nMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COM\nMENT");
+        /* LF at the end */
+        let test_banner = b"SSH-1.99-SOFTWARE COMMENT\n\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COMMENT\n");
+    }
+
+    #[test]
+    fn ssh_2_banner_crlf() {
         /* CRLF in SSH */
         let test_banner = b"S\r\nSH-2.0-SOFTWARE COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -393,49 +559,47 @@ mod tests {
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
     }
->>>>>>> 29f9e75 (Implement FSM for parsing SSH banner)
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::client::ClientInfoSrcDst;
-    use crate::MetaLogger;
-    use pnet::util::MacAddr;
-    use std::net::IpAddr;
-    use std::net::Ipv4Addr;
-
-    const CLIENT_INFO: ClientInfo = ClientInfo {
-        mac: ClientInfoSrcDst {
-            src: None,
-            dst: None,
-        },
-        ip: ClientInfoSrcDst {
-            src: Some(IpAddr::V4(Ipv4Addr::new(192, 0, 0, 0))),
-            dst: Some(IpAddr::V4(Ipv4Addr::new(192, 0, 0, 1))),
-        },
-        transport: None,
-        port: ClientInfoSrcDst {
-            src: Some(12345),
-            dst: Some(111),
-        },
-        cookie: None,
-    };
     #[test]
-    fn test_ssh_wrong_banner() {
-        let masscanned = Masscanned {
-            synack_key: [0, 0],
-            mac: MacAddr(0, 1, 2, 3, 4, 5),
-            iface: None,
-            ip_addresses: None,
-            log: MetaLogger::new(),
-        };
-        stderrlog::new()
-            .module(module_path!())
-            .verbosity(1)
-            .init()
-            .expect("error while initializing logging module");
-        let req = b"\xff";
-        repl(req, &masscanned, &CLIENT_INFO, None);
+    fn ssh_1_banner_crlf() {
+        /* CRLF in SSH */
+        let test_banner = b"S\r\nSH-1.99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* CRLF in VERSION */
+        let test_banner = b"SSH-1.\r\n99-SOFTWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_FAIL);
+        /* CRLF in SOFTWARE */
+        let test_banner = b"SSH-1.99-SOFT\r\nWARE COMMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFT");
+        assert!(pstate.ssh_comment == b"");
+        /* CRLF in COMMENT */
+        let test_banner = b"SSH-1.99-SOFTWARE COM\r\nMENT\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COM");
+        /* CRLF at the end */
+        let test_banner = b"SSH-1.99-SOFTWARE COMMENT\r\n\r\n";
+        let mut pstate = ProtocolState::new();
+        assert!(pstate.state == SSH_STATE_START);
+        ssh_parse(&mut pstate, test_banner);
+        assert!(pstate.state == SSH_STATE_EOB);
+        assert!(pstate.ssh_version == b"1.99");
+        assert!(pstate.ssh_software == b"SOFTWARE");
+        assert!(pstate.ssh_comment == b"COMMENT");
     }
 }

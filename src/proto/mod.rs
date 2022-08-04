@@ -29,7 +29,7 @@ mod stun;
 use stun::{STUN_PATTERN_CHANGE_REQUEST, STUN_PATTERN_EMPTY, STUN_PATTERN_MAGIC};
 
 mod ssh;
-use ssh::SSH_PATTERN_CLIENT_PROTOCOL;
+use ssh::{SSH_PATTERN_CLIENT_PROTOCOL_2, SSH_PATTERN_CLIENT_PROTOCOL_1};
 
 mod ghost;
 use ghost::GHOST_PATTERN_SIGNATURE;
@@ -83,7 +83,12 @@ fn proto_init() -> Smack {
         SmackFlags::ANCHOR_BEGIN | SmackFlags::ANCHOR_END | SmackFlags::WILDCARDS,
     );
     smack.add_pattern(
-        SSH_PATTERN_CLIENT_PROTOCOL,
+        SSH_PATTERN_CLIENT_PROTOCOL_2,
+        PROTO_SSH,
+        SmackFlags::ANCHOR_BEGIN,
+    );
+    smack.add_pattern(
+        SSH_PATTERN_CLIENT_PROTOCOL_1,
         PROTO_SSH,
         SmackFlags::ANCHOR_BEGIN,
     );
@@ -266,6 +271,7 @@ mod tests {
             "SSH-2.0-8.35 FlowSsh: FlowSshNet_SftpStress54.38.116.473\r\n",
             "SSH-2.0-libssh_0.9.5\r\n",
             "SSH-2.0-OpenSSH_6.7p1 Raspbian-5+deb8u3\r\n",
+            "SSH-1.99-Cisco-1.25\r\n",
         ];
         for payload in payloads.iter() {
             let _ssh_resp =
