@@ -17,10 +17,14 @@
 use lazy_static::lazy_static;
 use log::*;
 use pnet::packet::ip::IpNextHeaderProtocols;
+use std::convert::TryFrom;
 
 use crate::client::ClientInfo;
 use crate::smack::{Smack, SmackFlags, BASE_STATE, NO_MATCH, SMACK_CASE_SENSITIVE};
 use crate::Masscanned;
+
+mod dns;
+use dns::DNSPacket;
 
 mod http;
 use http::HTTP_VERBS;
@@ -40,6 +44,12 @@ use rpc::{RPC_CALL_TCP, RPC_CALL_UDP};
 mod smb;
 use smb::{SMB1_PATTERN_MAGIC, SMB2_PATTERN_MAGIC};
 
+mod dissector;
+use dissector::MPacket;
+
+// mod dissector;
+// pub use dissector::PacketDissector;
+//
 mod tcb;
 pub use tcb::{add_tcb, get_tcb, is_tcb_set, ProtocolState, TCPControlBlock};
 
@@ -145,6 +155,16 @@ pub fn repl<'a>(
         if id == NO_MATCH {
             id = PROTO_SMACK.search_next_end(&mut state);
         }
+        /* still no match: let us try to parse packet with protocoles
+         * that are not matched with a regex */
+        if id == NO_MATCH {
+            /* try to parse data as a DNS packet */
+            if let Ok(dns) = DNSPacket::try_from(data.to_vec()) {
+                if let Some(r) = dns.repl(&masscanned, &client_info, None) {
+                    return Some(r);
+                }
+            }
+        }
     }
     /* proto over else (e.g., UDP) */
     match id {
@@ -160,7 +180,6 @@ pub fn repl<'a>(
             if let Some(t) = &mut tcb {
                 t.proto_id = PROTO_NONE;
             }
-            debug!("id: {}", id);
             None
         }
     }
@@ -309,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn test_proto_repl_http() {
+    fn test_proto_dispatch_http() {
         /* ensure that HTTP FSM does not answer until completion of request
          * (at least headers) */
         let mut client_info = ClientInfo::new();
@@ -336,6 +355,33 @@ mod tests {
         let payload = b"GET / HTTP/1.1\r\n";
         if let Some(_) = repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
             panic!("expected no answer, got one");
+        }
+    }
+
+    #[test]
+    fn dispatch_dns() {
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
+            iface: None,
+            ip_addresses: None,
+            log: MetaLogger::new(),
+        };
+        let mut client_info = ClientInfo::new();
+        client_info.ip.dst = Some(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)));
+        let payloads = [
+            b"\x04\xd2\x01\x00\x00\x03\x00\x00\x00\x00\x00\x00\x03www\x08example1\x03com\x00\x00\x01\x00\x01\x03www\x08example2\x03com\x00\x00\x01\x00\x01\x03www\x08example3\x03com\x00\x00\x01\x00\x01",
+        ];
+        for payload in payloads.iter() {
+            let dns_resp =
+                if let Some(r) = repl(&payload.to_vec(), &masscanned, &mut client_info, None) {
+                    r
+                } else {
+                    panic!("expected an answer, got nothing");
+                };
+            if let Err(e) = DNSPacket::try_from(dns_resp) {
+                panic!("error trying to parse the DNS answer: {}", e);
+            }
         }
     }
 }

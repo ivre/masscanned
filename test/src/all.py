@@ -22,6 +22,7 @@ from .core import test_all  # noqa: F401
 
 DEFAULT_TESTS = [
     "arp",
+    "dns",
     "ghost",
     "http",
     "icmpv4",
