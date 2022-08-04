@@ -23,6 +23,8 @@ use crate::client::ClientInfo;
 use crate::proto::TCPControlBlock;
 use crate::Masscanned;
 
+use crate::proto::dissector::{MPacket, PacketDissector};
+
 // NBTSession + SMB Header
 // netbios type (1 byte) + reserved (1 byte) + length (2 bytes) + SMB MAGIC (4 bytes)
 //
@@ -32,70 +34,6 @@ pub const SMB2_PATTERN_MAGIC: &[u8; 8] = b"\x00\x00**\xfeSMB";
 // Build/Dissect secblob with Scapy using: GSSAPI_BLOB(b"`\x82.....")
 const SECURITY_BLOB_NEG_PROTO: &[u8] = b"`\x82\x01<\x06\x06+\x06\x01\x05\x05\x02\xa0\x82\x0100\x82\x01,\xa0\x1a0\x18\x06\n+\x06\x01\x04\x01\x827\x02\x02\x1e\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2\x82\x01\x0c\x04\x82\x01\x08NEGOEXTS\x01\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00p\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\xf4Rk\x17\x03\x8aK\x91\xc2\t}\x9a\x8f\xe6,\x96\\Q$/\x90MG\xc7\xad\x8f\x87k\"\x02\xbf\xc6\x00\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08NEGOEXTS\x03\x00\x00\x00\x01\x00\x00\x00@\x00\x00\x00\x98\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08@\x00\x00\x00X\x00\x00\x000V\xa0T0R0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key";
 const SECURITY_BLOB_CHALLENGE: &[u8] = b"\xa1\x81\x9c0\x81\x99\xa0\x03\n\x01\x01\xa1\x0c\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2\x81\x83\x04\x81\x80NTLMSSP\x00\x02\x00\x00\x00\x08\x00\x08\x008\x00\x00\x00\x15\x82\x8a\xe2$\x91\xa8\xf6\xf3\x89-4\x00\x00\x00\x00\x00\x00\x00\x00@\x00@\x00@\x00\x00\x00\n\x00aJ\x00\x00\x00\x0fW\x00I\x00N\x001\x00\x02\x00\x08\x00W\x00I\x00N\x001\x00\x01\x00\x08\x00W\x00I\x00N\x001\x00\x04\x00\x08\x00W\x00I\x00N\x001\x00\x03\x00\x08\x00W\x00I\x00N\x001\x00\x07\x00\x08\x00\xff&9\xf5B\x1d\xd8\x01\x00\x00\x00\x00";
-
-////////////
-// Common //
-////////////
-
-/// ### PacketDissector
-/// A util class used to dissect fields.
-#[derive(Debug, Clone)]
-struct PacketDissector<T> {
-    i: usize,
-    state: T,
-}
-impl<T> PacketDissector<T> {
-    fn new(initial_state: T) -> PacketDissector<T> {
-        return PacketDissector {
-            i: 0,
-            state: initial_state,
-        };
-    }
-    fn next_state(&mut self, state: T) {
-        self.state = state;
-        self.i = 0;
-    }
-    fn next_state_when_i_reaches(&mut self, state: T, i: usize) {
-        if self.i == i {
-            self.next_state(state);
-        }
-    }
-    fn _read_usize(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
-        self.i += 1;
-        self.next_state_when_i_reaches(next_state, size);
-        (value << 8) + *byte as usize
-    }
-    fn _read_ulesize(&mut self, byte: &u8, value: usize, next_state: T, size: usize) -> usize {
-        let ret = value + ((*byte as usize) << (8 * self.i));
-        self.i += 1;
-        self.next_state_when_i_reaches(next_state, size);
-        ret
-    }
-    fn read_u16(&mut self, byte: &u8, value: u16, next_state: T) -> u16 {
-        self._read_usize(byte, value as usize, next_state, 2) as u16
-    }
-    fn read_ule16(&mut self, byte: &u8, value: u16, next_state: T) -> u16 {
-        self._read_ulesize(byte, value as usize, next_state, 2) as u16
-    }
-    fn read_ule32(&mut self, byte: &u8, value: u32, next_state: T) -> u32 {
-        self._read_ulesize(byte, value as usize, next_state, 4) as u32
-    }
-    fn read_ule64(&mut self, byte: &u8, value: u64, next_state: T) -> u64 {
-        self._read_ulesize(byte, value as usize, next_state, 8) as u64
-    }
-}
-
-pub trait MPacket {
-    fn new() -> Self;
-    fn repl(&self) -> Option<Vec<u8>>;
-    fn parse(&mut self, byte: &u8);
-
-    fn parse_all(&mut self, bytes: &[u8]) {
-        for byte in bytes {
-            self.parse(byte);
-        }
-    }
-}
 
 /////////////
 // Netbios //
@@ -148,8 +86,13 @@ impl<T: MPacket> MPacket for NBTSession<T> {
         }
     }
 
-    fn repl(&self) -> Option<Vec<u8>> {
-        let payload_resp = self.payload.as_ref()?.repl()?;
+    fn repl(
+        &self,
+        masscanned: &Masscanned,
+        client_info: &ClientInfo,
+        tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
+        let payload_resp = self.payload.as_ref()?.repl(masscanned, client_info, tcb)?;
         let mut resp: Vec<u8> = Vec::new();
         let size = payload_resp.len() & 0x1ffff; // 7 first bits are 0
         resp.push(0x0);
@@ -288,8 +231,13 @@ impl MPacket for SMB1Header {
         }
     }
 
-    fn repl(&self) -> Option<Vec<u8>> {
-        let payload_resp = self.payload.as_ref()?.repl()?;
+    fn repl(
+        &self,
+        masscanned: &Masscanned,
+        client_info: &ClientInfo,
+        tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
+        let payload_resp = self.payload.as_ref()?.repl(masscanned, client_info, tcb)?;
         let mut resp: Vec<u8> = Vec::new();
         resp.extend_from_slice(b"\xffSMB"); // Start
         resp.push(self.command); // Command
@@ -407,7 +355,12 @@ impl MPacket for SMB1NegotiateRequest {
         }
     }
 
-    fn repl(&self) -> Option<Vec<u8>> {
+    fn repl(
+        &self,
+        _masscanned: &Masscanned,
+        _client_info: &ClientInfo,
+        _tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
         if !matches!(self.d.state, SMB1NegotiateRequestState::End) {
             return None;
         }
@@ -592,7 +545,12 @@ impl MPacket for SMB1SessionSetupRequest {
             SMB1SessionSetupRequestState::End => {}
         }
     }
-    fn repl(&self) -> Option<Vec<u8>> {
+    fn repl(
+        &self,
+        _masscanned: &Masscanned,
+        _client_info: &ClientInfo,
+        _tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
         if !matches!(self.d.state, SMB1SessionSetupRequestState::End) {
             return None;
         }
@@ -625,10 +583,15 @@ enum SMB1Payload {
 }
 
 impl SMB1Payload {
-    fn repl(&self) -> Option<Vec<u8>> {
+    fn repl(
+        &self,
+        masscanned: &Masscanned,
+        client_info: &ClientInfo,
+        tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
         match self {
-            SMB1Payload::NegotiateRequest(x) => x.repl(),
-            SMB1Payload::SessionSetupRequest(x) => x.repl(),
+            SMB1Payload::NegotiateRequest(x) => x.repl(masscanned, client_info, tcb),
+            SMB1Payload::SessionSetupRequest(x) => x.repl(masscanned, client_info, tcb),
         }
     }
     fn parse(&mut self, byte: &u8) {
@@ -771,8 +734,13 @@ impl MPacket for SMB2Header {
         }
     }
 
-    fn repl(&self) -> Option<Vec<u8>> {
-        let payload_resp = self.payload.as_ref()?.repl()?;
+    fn repl(
+        &self,
+        masscanned: &Masscanned,
+        client_info: &ClientInfo,
+        tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
+        let payload_resp = self.payload.as_ref()?.repl(masscanned, client_info, tcb)?;
         let mut resp: Vec<u8> = Vec::new();
         resp.extend_from_slice(b"\xfeSMB"); // Start
         resp.extend_from_slice(&64_u16.to_le_bytes()); // StructureSize
@@ -925,7 +893,12 @@ impl MPacket for SMB2NegotiateRequest {
             }
         }
     }
-    fn repl(&self) -> Option<Vec<u8>> {
+    fn repl(
+        &self,
+        _masscanned: &Masscanned,
+        _client_info: &ClientInfo,
+        _tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
         if !matches!(self.d.state, SMB2NegotiateRequestState::End) {
             return None;
         }
@@ -1077,7 +1050,12 @@ impl MPacket for SMB2SessionSetupRequest {
         }
     }
 
-    fn repl(&self) -> Option<Vec<u8>> {
+    fn repl(
+        &self,
+        _masscanned: &Masscanned,
+        _client_info: &ClientInfo,
+        _tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
         if !matches!(self.d.state, SMB2SetupRequestState::End) {
             return None;
         }
@@ -1099,10 +1077,15 @@ enum SMB2Payload {
 }
 
 impl SMB2Payload {
-    fn repl(&self) -> Option<Vec<u8>> {
+    fn repl(
+        &self,
+        masscanned: &Masscanned,
+        client_info: &ClientInfo,
+        tcb: Option<&mut TCPControlBlock>,
+    ) -> Option<Vec<u8>> {
         match self {
-            SMB2Payload::NegotiateRequest(x) => x.repl(),
-            SMB2Payload::SessionSetupRequest(x) => x.repl(),
+            SMB2Payload::NegotiateRequest(x) => x.repl(masscanned, client_info, tcb),
+            SMB2Payload::SessionSetupRequest(x) => x.repl(masscanned, client_info, tcb),
         }
     }
     fn parse(&mut self, byte: &u8) {
@@ -1119,28 +1102,28 @@ impl SMB2Payload {
 
 pub fn repl_smb1<'a>(
     data: &'a [u8],
-    _masscanned: &Masscanned,
-    _client_info: &ClientInfo,
-    _tcb: Option<&mut TCPControlBlock>,
+    masscanned: &Masscanned,
+    client_info: &ClientInfo,
+    tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     let mut nbtsession: NBTSession<SMB1Header> = NBTSession::new();
     for byte in data {
         nbtsession.parse(byte);
     }
-    nbtsession.repl()
+    nbtsession.repl(masscanned, client_info, tcb)
 }
 
 pub fn repl_smb2<'a>(
     data: &'a [u8],
-    _masscanned: &Masscanned,
-    _client_info: &ClientInfo,
-    _tcb: Option<&mut TCPControlBlock>,
+    masscanned: &Masscanned,
+    client_info: &ClientInfo,
+    tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     let mut nbtsession: NBTSession<SMB2Header> = NBTSession::new();
     for byte in data {
         nbtsession.parse(byte);
     }
-    nbtsession.repl()
+    nbtsession.repl(masscanned, client_info, tcb)
 }
 
 ///////////
