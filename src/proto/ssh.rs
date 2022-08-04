@@ -178,7 +178,9 @@ pub fn repl<'a>(
     debug!("sending SSH answer");
     warn!(
         "SSH server banner to {}",
-        std::str::from_utf8(&pstate.ssh_software).unwrap().trim_end()
+        std::str::from_utf8(&pstate.ssh_software)
+            .unwrap()
+            .trim_end()
     );
     Some(repl_data)
 }
