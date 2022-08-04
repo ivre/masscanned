@@ -37,14 +37,15 @@ def test_ipv4_udp_dns_in_a():
     payload = DNS()
     for sport in sports:
         for dport in dports:
-            for domain in ['example.com', 'www.example.com', 'masscan.ned']:
+            for domain in ["example.com", "www.example.com", "masscan.ned"]:
                 qd = DNSQR(qname=domain, qtype="A", qclass="IN")
                 dns_req = DNS(id=1234, rd=False, opcode=0, qd=qd)
                 req = (
                     Ether(dst=MAC_ADDR)
                     / IP(dst=IPV4_ADDR)
                     / UDP(sport=sport, dport=dport)
-                    / dns_req)
+                    / dns_req
+                )
                 resp = srp1(req, timeout=1)
                 assert resp is not None, "expecting answer, got nothing"
                 check_ip_checksum(resp)
@@ -59,25 +60,36 @@ def test_ipv4_udp_dns_in_a():
                         raise AssertionError("no DNS layer found")
                 else:
                     dns_rep = udp[DNS]
-                assert(dns_rep.id == 1234), f"unexpected id value: {rr.id}"
-                assert(dns_rep.qr == True), f"unexpected qr value"
-                assert(dns_rep.opcode == 0), f"unexpected opcode value"
-                assert(dns_rep.aa == True), f"unexpected aa value"
-                assert(dns_rep.tc == False), f"unexpected tc value"
-                assert(dns_rep.rd == False), f"unexpected rd value"
-                assert(dns_rep.ra == False), f"unexpected ra value"
-                assert(dns_rep.z == 0), f"unexpected z value"
-                assert(dns_rep.rcode == 0), f"unexpected rcode value"
-                assert(dns_rep.qdcount == 1), f"unexpected qdcount value"
-                assert(dns_rep.ancount == 1), f"unexpected ancount value"
-                assert(dns_rep.nscount == 0), f"unexpected nscount value"
-                assert(dns_rep.arcount == 0), f"unexpected arcount value"
-                assert(raw(dns_rep.qd[0]) == raw(dns_req.qd[0])), f"query in request and response do not match"
-                assert(raw(dns_rep.qd[0].qname) == raw(dns_req.qd[0].qname + b'.')), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
-                assert(dns_rep.an[0].rrname == dns_req.qd[0].qname + b'.'), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
-                assert(dns_rep.an[0].rclass == dns_req.qd[0].qclass), f"class in answer does not match query"
-                assert(dns_rep.an[0].type == dns_req.qd[0].qtype), f"type in answer does not match query"
-                assert(dns_rep.an[0].rdata == IPV4_ADDR)
+                assert dns_rep.id == 1234, f"unexpected id value: {rr.id}"
+                assert dns_rep.qr == True, f"unexpected qr value"
+                assert dns_rep.opcode == 0, f"unexpected opcode value"
+                assert dns_rep.aa == True, f"unexpected aa value"
+                assert dns_rep.tc == False, f"unexpected tc value"
+                assert dns_rep.rd == False, f"unexpected rd value"
+                assert dns_rep.ra == False, f"unexpected ra value"
+                assert dns_rep.z == 0, f"unexpected z value"
+                assert dns_rep.rcode == 0, f"unexpected rcode value"
+                assert dns_rep.qdcount == 1, f"unexpected qdcount value"
+                assert dns_rep.ancount == 1, f"unexpected ancount value"
+                assert dns_rep.nscount == 0, f"unexpected nscount value"
+                assert dns_rep.arcount == 0, f"unexpected arcount value"
+                assert raw(dns_rep.qd[0]) == raw(
+                    dns_req.qd[0]
+                ), f"query in request and response do not match"
+                assert raw(dns_rep.qd[0].qname) == raw(
+                    dns_req.qd[0].qname + b"."
+                ), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                assert (
+                    dns_rep.an[0].rrname == dns_req.qd[0].qname + b"."
+                ), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                assert (
+                    dns_rep.an[0].rclass == dns_req.qd[0].qclass
+                ), f"class in answer does not match query"
+                assert (
+                    dns_rep.an[0].type == dns_req.qd[0].qtype
+                ), f"type in answer does not match query"
+                assert dns_rep.an[0].rdata == IPV4_ADDR
+
 
 @test
 def test_ipv4_udp_dns_in_a_multiple_queries():
@@ -86,13 +98,18 @@ def test_ipv4_udp_dns_in_a_multiple_queries():
     payload = DNS()
     for sport in sports:
         for dport in dports:
-            qd = DNSQR(qname="www.example1.com", qtype="A", qclass="IN")/DNSQR(qname="www.example2.com", qtype="A", qclass="IN")/DNSQR(qname="www.example3.com", qtype="A", qclass="IN")
+            qd = (
+                DNSQR(qname="www.example1.com", qtype="A", qclass="IN")
+                / DNSQR(qname="www.example2.com", qtype="A", qclass="IN")
+                / DNSQR(qname="www.example3.com", qtype="A", qclass="IN")
+            )
             dns_req = DNS(id=1234, rd=False, opcode=0, qd=qd)
             req = (
                 Ether(dst=MAC_ADDR)
                 / IP(dst=IPV4_ADDR)
                 / UDP(sport=sport, dport=dport)
-                / dns_req)
+                / dns_req
+            )
             resp = srp1(req, timeout=1)
             assert resp is not None, "expecting answer, got nothing"
             check_ip_checksum(resp)
@@ -107,23 +124,33 @@ def test_ipv4_udp_dns_in_a_multiple_queries():
                     raise AssertionError("no DNS layer found")
             else:
                 dns_rep = udp[DNS]
-            assert(dns_rep.id == 1234), f"unexpected id value: {rr.id}"
-            assert(dns_rep.qr == True), f"unexpected qr value"
-            assert(dns_rep.opcode == 0), f"unexpected opcode value"
-            assert(dns_rep.aa == True), f"unexpected aa value"
-            assert(dns_rep.tc == False), f"unexpected tc value"
-            assert(dns_rep.rd == False), f"unexpected rd value"
-            assert(dns_rep.ra == False), f"unexpected ra value"
-            assert(dns_rep.z == 0), f"unexpected z value"
-            assert(dns_rep.rcode == 0), f"unexpected rcode value"
-            assert(dns_rep.qdcount == 3), f"unexpected qdcount value"
-            assert(dns_rep.ancount == 3), f"unexpected ancount value"
-            assert(dns_rep.nscount == 0), f"unexpected nscount value"
-            assert(dns_rep.arcount == 0), f"unexpected arcount value"
+            assert dns_rep.id == 1234, f"unexpected id value: {rr.id}"
+            assert dns_rep.qr == True, f"unexpected qr value"
+            assert dns_rep.opcode == 0, f"unexpected opcode value"
+            assert dns_rep.aa == True, f"unexpected aa value"
+            assert dns_rep.tc == False, f"unexpected tc value"
+            assert dns_rep.rd == False, f"unexpected rd value"
+            assert dns_rep.ra == False, f"unexpected ra value"
+            assert dns_rep.z == 0, f"unexpected z value"
+            assert dns_rep.rcode == 0, f"unexpected rcode value"
+            assert dns_rep.qdcount == 3, f"unexpected qdcount value"
+            assert dns_rep.ancount == 3, f"unexpected ancount value"
+            assert dns_rep.nscount == 0, f"unexpected nscount value"
+            assert dns_rep.arcount == 0, f"unexpected arcount value"
             for i, q in enumerate(qd):
-                assert(raw(dns_rep.qd[i]) == raw(dns_req.qd[i])), f"query in request and response do not match"
-                assert(raw(dns_rep.qd[i].qname) == raw(dns_req.qd[i].qname + b'.')), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
-                assert(dns_rep.an[i].rrname == dns_req.qd[i].qname + b'.'), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
-                assert(dns_rep.an[i].rclass == dns_req.qd[i].qclass), f"class in answer does not match query"
-                assert(dns_rep.an[i].type == dns_req.qd[i].qtype), f"type in answer does not match query"
-                assert(dns_rep.an[i].rdata == IPV4_ADDR)
+                assert raw(dns_rep.qd[i]) == raw(
+                    dns_req.qd[i]
+                ), f"query in request and response do not match"
+                assert raw(dns_rep.qd[i].qname) == raw(
+                    dns_req.qd[i].qname + b"."
+                ), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                assert (
+                    dns_rep.an[i].rrname == dns_req.qd[i].qname + b"."
+                ), f"if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                assert (
+                    dns_rep.an[i].rclass == dns_req.qd[i].qclass
+                ), f"class in answer does not match query"
+                assert (
+                    dns_rep.an[i].type == dns_req.qd[i].qtype
+                ), f"type in answer does not match query"
+                assert dns_rep.an[i].rdata == IPV4_ADDR
