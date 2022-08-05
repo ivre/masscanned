@@ -21,17 +21,25 @@ For example, when it receives network packets:
 
 ![demo](doc/img/demo.gif)
 
-**Masscanned** currently supports most common protocols at layers 2-3-4, and a few application
-protocols:
+## Overview
 
-* `Eth::ARP::REQ`,
-* `Eth::IPv{4,6}::ICMP::ECHO-REQ`,
-* `Eth::IPv{4,6}::TCP::SYN` (all ports),
-* `Eth::IPv{4,6}::TCP::PSHACK` (all ports),
-* `Eth::IPv6::ICMP::ND_NS`.
-* `Eth::IPv{4,6}::{TCP,UDP}::HTTP` (all HTTP verbs),
-* `Eth::IPv{4,6}::{TCP,UDP}::STUN`,
-* `Eth::IPv{4,6}::{TCP,UDP}::SSH` (Server Protocol only).
+**Masscanned** currently supports most common protocols at layers 2-3-4, and a few application
+protocols.
+
+### Network protocols
+
+* ARP (answers to ARP requests)
+* ICMP (answers to ping) 
+* ICMPv6 (answers to ND NS) 
+* TCP (answers to SYN and PUSH)
+
+### Application protocols
+
+* HTTP (answers to all verbs)
+* SSH (answers to the client banner)
+* STUN (answers to binding requests)
+* SMB
+* DNS (answers to IN/A queries)
 
 ## Try it locally
 
@@ -75,7 +83,7 @@ The pcaps can then be analyzed using [zeek](https://zeek.org/) and the output fi
 
 A documentation on how to deploy an instance of **masscanned** on a VPS is coming (see [Issue #2](https://github.com/ivre/masscanned/issues/2)).
 
-## Protocols
+## Supported protocols - details
 
 ### Layer 2
 
@@ -123,7 +131,7 @@ An additionnal requirement is that the next layer protocol is supported - see be
 
 #### IPv4
 
-The following L4 protocols are supported for an `IPv4` packet:
+The following L3+/4 protocols are supported for an `IPv4` packet:
 
 * `ICMPv4`
 * `UDP`
@@ -133,7 +141,7 @@ If the next layer protocol is not one of them, the packet is dropped.
 
 #### IPv6
 
-The following L4 protocols are supported for an `IPv6` packet:
+The following L3+/4 protocols are supported for an `IPv6` packet:
 
 * `ICMPv6`
 * `UDP`
@@ -184,11 +192,56 @@ a supported protocol (Layer 5/6/7) has been detected,
 `masscanned` answers to an `UDP` packet if and only if the upper-layer protocol
 is handled and provides an answer.
 
-### Protocols
+### Application protocols
 
 #### HTTP
 
+`masscanned` answers to any `HTTP` request (any **valid** verb) with a `401 Authorization Required`.
+Note that `HTTP` requests with an invalid verb will not be answered.
+
+Example:
+
+```
+$ curl -X GET 10.11.10.129
+<html>
+<head><title>401 Authorization Required</title></head>
+<body bgcolor="white">
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx/1.14.2</center>
+</body>
+</html>
+$ curl -X OPTIONS 10.11.10.129
+<html>
+<head><title>401 Authorization Required</title></head>
+<body bgcolor="white">
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx/1.14.2</center>
+</body>
+</html>
+$ curl -X HEAD 10.11.10.129
+Warning: Setting custom HTTP method to HEAD with -X/--request may not work the 
+Warning: way you want. Consider using -I/--head instead.
+<html>
+<head><title>401 Authorization Required</title></head>
+<body bgcolor="white">
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx/1.14.2</center>
+</body>
+</html>
+$ curl -X XXX 10.11.10.129
+[timeout]
+```
+
 #### STUN
+
+Example:
+
+```
+$ stun 10.11.10.129
+STUN client version 0.97
+Primary: Open
+Return value is 0x000001
+```
 
 #### SSH
 
@@ -196,6 +249,57 @@ is handled and provides an answer.
 
 ```
 SSH-2.0-1\r\n
+```
+
+#### SMB
+
+`masscanned` answers to `Negotiate Protocol Request` packets in order for the
+client to send a `NTLMSSP_NEGOTIATE`, to which `masscanned` answers with a challenge.
+
+Example:
+
+```
+##$ smbclient -U user \\\\10.11.10.129\\shared
+Enter WORKGROUP\user's password: 
+```
+
+#### DNS
+
+`masscanned` answers to `DNS` queries of class `IN` and type `A` (for now).
+The answer it provides always contains the IP address the query was sent to.
+
+Example:
+
+```
+$ host -t A masscan.ned 10.11.10.129
+Using domain server:
+Name: 10.11.10.129
+Address: 10.11.10.129#53
+Aliases: 
+
+masscan.ned has address 10.11.10.129
+$ host -t A masscan.ned 10.11.10.130
+Using domain server:
+Name: 10.11.10.130
+Address: 10.11.10.130#53
+Aliases: 
+
+masscan.ned has address 10.11.10.130
+$ host -t A masscan.ned 10.11.10.131
+Using domain server:
+Name: 10.11.10.131
+Address: 10.11.10.131#53
+Aliases: 
+
+masscan.ned has address 10.11.10.131
+$ host -t A masscan.ned 10.11.10.132
+Using domain server:
+Name: 10.11.10.132
+Address: 10.11.10.132#53
+Aliases: 
+
+masscan.ned has address 10.11.10.132
+
 ```
 
 ## Internals
@@ -207,68 +311,118 @@ SSH-2.0-1\r\n
 ```
 $ cargo test
    Compiling masscanned v0.2.0 (/zdata/workdir/masscanned)
-    Finished test [unoptimized + debuginfo] target(s) in 2.34s
-     Running target/debug/deps/masscanned-b86211a090e50323
+    Finished test [unoptimized + debuginfo] target(s) in 3.83s
+     Running unittests (target/debug/deps/masscanned-f9292f8600038978)
 
-running 36 tests
+running 92 tests
 test client::client_info::tests::test_client_info_eq ... ok
 test layer_2::arp::tests::test_arp_reply ... ok
-test layer_3::ipv4::tests::test_ipv4_reply ... ok
-test layer_3::ipv6::tests::test_ipv6_reply ... ok
-test layer_4::icmpv6::tests::test_icmpv6_reply ... ok
+test layer_2::tests::test_eth_empty ... ok
 test layer_2::tests::test_eth_reply ... ok
-test layer_4::icmpv6::tests::test_nd_na_reply ... ok
-test layer_4::tcp::tests::test_synack_cookie_ipv4 ... ok
+test layer_3::ipv4::tests::test_ipv4_reply ... ok
+test layer_3::ipv4::tests::test_ipv4_empty ... ok
+test layer_3::ipv6::tests::test_ipv6_empty ... ok
+test layer_3::ipv6::tests::test_ipv6_reply ... ok
 test layer_4::icmpv4::tests::test_icmpv4_reply ... ok
+test layer_4::icmpv6::tests::test_icmpv6_reply ... ok
+test layer_4::icmpv6::tests::test_nd_na_reply ... ok
 test layer_4::tcp::tests::test_synack_cookie_ipv6 ... ok
-test proto::http::test_http_request_field ... ok
-test proto::http::test_http_request_no_field ... ok
-test proto::http::test_http_request_line ... ok
-test proto::http::test_http_verb ... ok
-test proto::stun::tests::test_change_request_port ... ok
-test proto::stun::tests::test_proto_stun_ipv6 ... ok
-test proto::stun::tests::test_proto_stun_ipv4 ... ok
+test layer_4::tcp::tests::test_tcp_fin_ack_wrap ... ok
+test proto::dns::cst::tests::class_parse ... ok
+test layer_4::tcp::tests::test_tcp_fin_ack ... ok
+test layer_4::tcp::tests::test_synack_cookie_ipv4 ... ok
+test proto::dns::cst::tests::type_parse ... ok
+test proto::dns::header::tests::parse_byte_by_byte ... ok
+test proto::dns::header::tests::repl_id ... ok
+test proto::dns::header::tests::repl_opcode ... ok
+test proto::dns::header::tests::repl_ancount ... ok
+test proto::dns::header::tests::repl_rd ... ok
+test proto::dns::query::tests::parse_in_a_all ... ok
+test proto::dns::header::tests::parse_all ... ok
+test proto::dns::query::tests::repl ... ok
+test proto::dns::query::tests::reply_in_a ... ok
+test proto::dns::rr::tests::parse_all ... ok
+test proto::dns::rr::tests::parse_byte_by_byte ... ok
+test proto::dns::query::tests::parse_in_a_byte_by_byte ... ok
+test proto::dns::tests::parse_qd_all ... ok
+test proto::dns::tests::parse_qd_byte_by_byte ... ok
+test proto::dns::rr::tests::build ... ok
+test proto::dns::tests::parse_qd_rr_all ... ok
+test proto::dns::tests::parse_qr_rr_byte_by_byte ... ok
+test proto::dns::tests::parse_rr_byte_by_byte ... ok
+test proto::dns::tests::parse_rr_all ... ok
+test proto::dns::tests::reply_in_a ... ok
+test proto::http::tests::test_http_request_line ... ok
+test proto::http::tests::test_http_request_no_field ... ok
+test proto::http::tests::test_http_request_field ... ok
+test proto::http::tests::test_http_verb ... ok
+test proto::rpc::tests::test_probe_nmap ... ok
+test proto::rpc::tests::test_probe_nmap_split1 ... ok
+test proto::rpc::tests::test_probe_portmap_v4_dump ... ok
+test proto::rpc::tests::test_probe_nmap_split2 ... ok
+test proto::rpc::tests::test_probe_nmap_udp ... ok
+test proto::smb::tests::test_smb1_session_setup_request_parse ... ok
+test proto::smb::tests::test_smb1_protocol_nego_parsing ... ok
+test proto::smb::tests::test_smb1_protocol_nego_reply ... ok
+test proto::smb::tests::test_smb1_session_setup_request_reply ... ok
+test proto::smb::tests::test_smb2_protocol_nego_parsing ... ok
+test proto::smb::tests::test_smb2_protocol_nego_reply ... ok
+test proto::smb::tests::test_smb2_session_setup_request_reply ... ok
+test proto::smb::tests::test_smb2_session_setup_request_parse ... ok
+test proto::ssh::tests::ssh_1_banner_cr ... ok
+test proto::ssh::tests::ssh_1_banner_crlf ... ok
+test proto::ssh::tests::ssh_1_banner_lf ... ok
+test proto::ssh::tests::ssh_1_banner_space ... ok
+test proto::ssh::tests::ssh_2_banner_cr ... ok
+test proto::ssh::tests::ssh_1_banner_parse ... ok
+test proto::ssh::tests::ssh_2_banner_parse ... ok
+test proto::ssh::tests::ssh_2_banner_lf ... ok
+test proto::ssh::tests::ssh_2_banner_crlf ... ok
 test proto::stun::tests::test_change_request_port_overflow ... ok
-test smack::smack::tests::test_anchor_end ... ok
-test smack::smack::tests::test_anchor_begin ... ok
-test smack::smack::tests::test_multiple_matches ... ok
-test smack::smack::tests::test_http_banner ... ok
-test smack::smack::tests::test_multiple_matches_wildcard ... ok
-test smack::smack::tests::test_proto ... ok
-test smack::smack::tests::test_wildcard ... ok
+test proto::stun::tests::test_proto_stun_ipv4 ... ok
+test proto::stun::tests::test_change_request_port ... ok
+test proto::ssh::tests::ssh_2_banner_space ... ok
+test proto::stun::tests::test_proto_stun_ipv6 ... ok
+test proto::tcb::tests::test_proto_tcb_proto_state_http ... ok
+test proto::tests::dispatch_dns ... ok
+test proto::tcb::tests::test_proto_tcb_proto_state_rpc ... ok
+test proto::tcb::tests::test_proto_tcb_proto_id ... ok
+test proto::tests::test_proto_dispatch_http ... ok
 test proto::tests::test_proto_dispatch_ssh ... ok
+test proto::tests::test_proto_dispatch_ghost ... ok
 test proto::tests::test_proto_dispatch_stun ... ok
+test smack::smack::tests::test_anchor_end ... ok
+test smack::smack::tests::test_multiple_matches_wildcard ... ok
+test smack::smack::tests::test_multiple_matches ... ok
+test smack::smack::tests::test_anchor_begin ... ok
+test smack::smack::tests::test_http_banner ... ok
 test synackcookie::tests::test_clientinfo ... ok
+test synackcookie::tests::test_ip4 ... ok
 test synackcookie::tests::test_ip4_dst ... ok
 test synackcookie::tests::test_ip4_src ... ok
-test synackcookie::tests::test_ip4 ... ok
 test synackcookie::tests::test_ip6 ... ok
 test synackcookie::tests::test_key ... ok
 test synackcookie::tests::test_tcp_dst ... ok
 test synackcookie::tests::test_tcp_src ... ok
+test smack::smack::tests::test_wildcard ... ok
+test smack::smack::tests::test_proto ... ok
 test smack::smack::tests::test_pattern ... ok
 
-test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 92 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
 ```
 
 #### Functional tests
 
 ```
 # ./test/test_masscanned.py
-tcpdump: listening on tap0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 INFO    test_arp_req......................................OK
 INFO    test_arp_req_other_ip.............................OK
-INFO    test_ipv4_req.....................................OK
-INFO    test_eth_req_other_mac............................OK
-INFO    test_ipv4_req_other_ip............................OK
-INFO    test_icmpv4_echo_req..............................OK
-INFO    test_icmpv6_neighbor_solicitation.................OK
-INFO    test_icmpv6_neighbor_solicitation_other_ip........OK
-INFO    test_icmpv6_echo_req..............................OK
-INFO    test_tcp_syn......................................OK
-INFO    test_ipv4_tcp_psh_ack.............................OK
-INFO    test_ipv6_tcp_psh_ack.............................OK
+INFO    test_ipv4_udp_dns_in_a............................OK
+INFO    test_ipv4_udp_dns_in_a_multiple_queries...........OK
+INFO    test_ipv4_tcp_ghost...............................OK
 INFO    test_ipv4_tcp_http................................OK
+INFO    test_ipv4_tcp_http_segmented......................OK
+INFO    test_ipv4_tcp_http_incomplete.....................OK
 INFO    test_ipv6_tcp_http................................OK
 INFO    test_ipv4_udp_http................................OK
 INFO    test_ipv6_udp_http................................OK
@@ -276,18 +430,33 @@ INFO    test_ipv4_tcp_http_ko.............................OK
 INFO    test_ipv4_udp_http_ko.............................OK
 INFO    test_ipv6_tcp_http_ko.............................OK
 INFO    test_ipv6_udp_http_ko.............................OK
-INFO    test_ipv4_udp_stun................................OK
-INFO    test_ipv6_udp_stun................................OK
-INFO    test_ipv4_udp_stun_change_port....................OK
-INFO    test_ipv6_udp_stun_change_port....................OK
+INFO    test_icmpv4_echo_req..............................OK
+INFO    test_icmpv6_neighbor_solicitation.................OK
+INFO    test_icmpv6_neighbor_solicitation_other_ip........OK
+INFO    test_icmpv6_echo_req..............................OK
+INFO    test_ipv4_req.....................................OK
+INFO    test_eth_req_other_mac............................OK
+INFO    test_ipv4_req_other_ip............................OK
+INFO    test_rpc_nmap.....................................OK
+INFO    test_rpcinfo......................................OK
+INFO    test_smb1_network_req.............................OK
+INFO    test_smb2_network_req.............................OK
 INFO    test_ipv4_tcp_ssh.................................OK
 INFO    test_ipv4_udp_ssh.................................OK
 INFO    test_ipv6_tcp_ssh.................................OK
 INFO    test_ipv6_udp_ssh.................................OK
-tcpdump: pcap_loop: The interface disappeared
-604 packets captured
-604 packets received by filter
-0 packets dropped by kernel
+INFO    test_ipv4_udp_stun................................OK
+INFO    test_ipv6_udp_stun................................OK
+INFO    test_ipv4_udp_stun_change_port....................OK
+INFO    test_ipv6_udp_stun_change_port....................OK
+INFO    test_ipv4_tcp_empty...............................OK
+INFO    test_ipv6_tcp_empty...............................OK
+INFO    test_tcp_syn......................................OK
+INFO    test_ipv4_tcp_psh_ack.............................OK
+INFO    test_ipv6_tcp_psh_ack.............................OK
+INFO    test_ipv4_udp_empty...............................OK
+INFO    test_ipv6_udp_empty...............................OK
+INFO    Ran 41 tests with 0 errors
 ```
 
 You can also chose what tests to run using the `TESTS` environment variable
@@ -295,7 +464,7 @@ You can also chose what tests to run using the `TESTS` environment variable
 TESTS=smb ./test/test_masscanned.py
 INFO    test_smb1_network_req.............................OK
 INFO    test_smb2_network_req.............................OK
-INFO    Ran 2 tests with 1 errors
+INFO    Ran 2 tests with 0 errors
 ```
 
 ## Logging
