@@ -176,12 +176,7 @@ pub fn repl<'a>(
     }
     let repl_data = b"SSH-2.0-1\r\n".to_vec();
     debug!("sending SSH answer");
-    warn!(
-        "SSH server banner to {}",
-        std::str::from_utf8(&pstate.ssh_software)
-            .unwrap()
-            .trim_end()
-    );
+    warn!("SSH server banner to {}", byte2str(&pstate.ssh_software));
     Some(repl_data)
 }
 
