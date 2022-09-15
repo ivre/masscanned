@@ -157,9 +157,7 @@ impl IpAddrParser for &str {
             } else if let Ok(val) = line.parse::<Ipv6Addr>() {
                 ip = IpAddr::V6(val);
             } else {
-                warn!(
-                    "cannot parse IP address from line: {}", line
-                );
+                warn!("cannot parse IP address from line: {}", line);
                 continue;
             }
             if let Some(ref b) = blacklist {
