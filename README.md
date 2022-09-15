@@ -83,6 +83,25 @@ The pcaps can then be analyzed using [zeek](https://zeek.org/) and the output fi
 
 A documentation on how to deploy an instance of **masscanned** on a VPS is coming (see [Issue #2](https://github.com/ivre/masscanned/issues/2)).
 
+### Supported options
+
+```
+Network responder - answer them all 0.2.0
+Network answering machine for various network protocols (L2-L3-L4 + applications)
+
+USAGE:
+    masscanned [OPTIONS] --iface <iface>
+
+OPTIONS:
+    -h, --help                     Print help information
+    -i, --iface <iface>            the interface to use for receiving/sending packets
+        --ip-addr <iplist>         Inline list of IP addresses to impersonate, comma-separated
+        --ip-addr-file <ipfile>    File with the list of IP addresses to impersonate
+    -m, --mac-addr <mac>           MAC address to use in the response packets
+    -v                             Increase message verbosity
+    -V, --version                  Print version information
+```
+
 ## Supported protocols - details
 
 ### Layer 2
