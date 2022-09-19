@@ -163,9 +163,9 @@ masscanned = subprocess.Popen(
         "-vvvvv",
         "-i",
         f"{IFACE}b",
-        "-f",
+        "--ip-addr-file",
         ipfile.name,
-        "-a",
+        "-m",
         MAC_ADDR,
     ]
     # if args in CLI, they are passed to masscanned

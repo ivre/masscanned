@@ -134,6 +134,43 @@ impl IpAddrParser for File {
     }
 }
 
+/* Parse IP addresses from a comma-separated list in a string */
+impl IpAddrParser for &str {
+    fn extract_ip_addresses_with_count(
+        self,
+        _blacklist: Option<HashSet<IpAddr>>,
+    ) -> HashMap<IpAddr, u32> {
+        panic!("not implemented");
+    }
+
+    fn extract_ip_addresses_only(self, blacklist: Option<HashSet<IpAddr>>) -> HashSet<IpAddr> {
+        let mut ip_addresses = HashSet::new();
+        for line in self.split(",") {
+            /* Should never occur */
+            if line.is_empty() {
+                warn!("cannot parse line: {}", line);
+                continue;
+            }
+            let ip: IpAddr;
+            if let Ok(val) = line.parse::<Ipv4Addr>() {
+                ip = IpAddr::V4(val);
+            } else if let Ok(val) = line.parse::<Ipv6Addr>() {
+                ip = IpAddr::V6(val);
+            } else {
+                warn!("cannot parse IP address from line: {}", line);
+                continue;
+            }
+            if let Some(ref b) = blacklist {
+                if b.contains(&ip) {
+                    info!("[blacklist] ignoring {}", &ip);
+                    continue;
+                }
+            }
+            ip_addresses.insert(ip);
+        }
+        ip_addresses
+    }
+}
 /* Get the IP address of source and dest. from an IP packet.
  * works with both IPv4 and IPv6 packets/addresses */
 fn extract_ip(pkt: Packet) -> Option<(IpAddr, IpAddr)> {

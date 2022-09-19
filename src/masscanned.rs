@@ -116,16 +116,21 @@ fn main() {
         )
         .arg(
             Arg::new("mac")
-                .short('a')
+                .short('m')
                 .long("mac-addr")
                 .help("MAC address to use in the response packets")
                 .takes_value(true),
         )
         .arg(
-            Arg::new("ip")
-                .short('f')
+            Arg::new("ipfile")
                 .long("ip-addr-file")
                 .help("File with the list of IP addresses to impersonate")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::new("iplist")
+                .long("ip-addr")
+                .help("Inline list of IP addresses to impersonate, comma-separated")
                 .takes_value(true),
         )
         .arg(
@@ -173,7 +178,7 @@ fn main() {
     };
     /* Parse ip address file specified */
     /* FIXME: .and_then(|path| File::open(path).map(|file| )).unwrap_or_default() ? */
-    let ip_list = if let Some(ref path) = args.value_of("ip") {
+    let mut ip_list = if let Some(ref path) = args.value_of("ipfile") {
         if let Ok(file) = File::open(path) {
             info!("parsing ip address file: {}", &path);
             file.extract_ip_addresses_only(None)
@@ -183,9 +188,17 @@ fn main() {
     } else {
         HashSet::new()
     };
+    if let Some(ip_inline_list) = args.value_of("iplist") {
+        ip_list.extend(ip_inline_list.extract_ip_addresses_only(None));
+    }
     let ip_addresses = if !ip_list.is_empty() {
+        for ip in &ip_list {
+            info!("binding........{}", ip);
+        }
         Some(&ip_list)
     } else {
+        info!("binding........0.0.0.0");
+        info!("binding........::");
         None
     };
     let mut masscanned = Masscanned {
