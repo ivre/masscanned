@@ -98,6 +98,7 @@ OPTIONS:
         --ip-addr <iplist>         Inline list of IP addresses to impersonate, comma-separated
         --ip-addr-file <ipfile>    File with the list of IP addresses to impersonate
     -m, --mac-addr <mac>           MAC address to use in the response packets
+    -q, --quiet                    Quiet mode: does not output anything on stdout
     -v                             Increase message verbosity
     -V, --version                  Print version information
 ```
