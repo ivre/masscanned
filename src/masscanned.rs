@@ -139,6 +139,13 @@ fn main() {
                 .multiple_occurrences(true)
                 .help("Increase message verbosity"),
         )
+        .arg(
+            Arg::new("quiet")
+                .long("quiet")
+                .short('q')
+                .help("Quiet mode: do not output anything on stdout")
+                .takes_value(false),
+        )
         .get_matches();
     let verbose = args.occurrences_of("verbosity") as usize;
     /* initialise logger */
@@ -210,8 +217,10 @@ fn main() {
     };
     info!("interface......{}", masscanned.iface.unwrap().name);
     info!("mac address....{}", masscanned.mac);
-    masscanned.log.add(Box::new(ConsoleLogger::new()));
-    masscanned.log.init();
+    if !args.contains_id("quiet") {
+        masscanned.log.add(Box::new(ConsoleLogger::new()));
+        masscanned.log.init();
+    }
     let (mut tx, mut rx) = get_channel(masscanned.iface.unwrap());
     loop {
         /* check if network interface is still up */
