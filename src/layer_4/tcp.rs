@@ -31,10 +31,10 @@ pub fn repl<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableTcpPacket<'b>> {
-    masscanned.log.tcp_recv(tcp_req, client_info);
     /* Fill client info with source and dest. TCP port */
     client_info.port.src = Some(tcp_req.get_source());
     client_info.port.dst = Some(tcp_req.get_destination());
+    masscanned.log.tcp_recv(tcp_req, client_info);
     /* Construct response TCP packet */
     let mut tcp_repl;
     match tcp_req.get_flags() {

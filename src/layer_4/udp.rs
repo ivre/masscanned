@@ -28,10 +28,10 @@ pub fn repl<'a, 'b>(
     masscanned: &Masscanned,
     mut client_info: &mut ClientInfo,
 ) -> Option<MutableUdpPacket<'b>> {
-    masscanned.log.udp_recv(udp_req, client_info);
     /* Fill client info with source and dest. UDP port */
     client_info.port.src = Some(udp_req.get_source());
     client_info.port.dst = Some(udp_req.get_destination());
+    masscanned.log.udp_recv(udp_req, client_info);
     let payload = udp_req.payload();
     let mut udp_repl;
     if let Some(repl) = proto::repl(&payload, masscanned, &mut client_info, None) {
