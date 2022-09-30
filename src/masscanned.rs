@@ -1,5 +1,5 @@
 // This file is part of masscanned.
-// Copyright 2021 - The IVRE project
+// Copyright 2021 - 2022 The IVRE project
 //
 // Masscanned is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ use std::fs::File;
 use std::net::IpAddr;
 use std::str::FromStr;
 
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use log::*;
 use pnet::{
     datalink::{self, Channel::Ethernet, DataLinkReceiver, DataLinkSender, NetworkInterface},
@@ -112,42 +112,41 @@ fn main() {
                 .value_name("iface")
                 .help("the interface to use for receiving/sending packets")
                 .required(true)
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("mac")
                 .short('m')
                 .long("mac-addr")
                 .help("MAC address to use in the response packets")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("ipfile")
                 .long("ip-addr-file")
                 .help("File with the list of IP addresses to impersonate")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("iplist")
                 .long("ip-addr")
                 .help("Inline list of IP addresses to impersonate, comma-separated")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("verbosity")
                 .short('v')
-                .multiple_occurrences(true)
+                .action(ArgAction::Count)
                 .help("Increase message verbosity"),
         )
         .arg(
             Arg::new("quiet")
                 .long("quiet")
                 .short('q')
-                .help("Quiet mode: do not output anything on stdout")
-                .takes_value(false),
+                .help("Quiet mode: do not output anything on stdout"),
         )
         .get_matches();
-    let verbose = args.occurrences_of("verbosity") as usize;
+    let verbose = args.value_source("verbosity").unwrap() as usize;
     /* initialise logger */
     stderrlog::new()
         .module(module_path!())
@@ -160,14 +159,14 @@ fn main() {
     trace!("trace messages enabled");
     info!("Command line arguments:");
     let iface = if let Some(i) = get_interface(
-        args.value_of("interface")
+        args.get_one::<String>("interface")
             .expect("error parsing iface argument"),
     ) {
         i
     } else {
         error!(
             "Cannot open interface \"{}\" - are you sure it exists?",
-            args.value_of("interface")
+            args.get_one::<String>("interface")
                 .expect("error parsing iface argument")
         );
         return;
@@ -176,7 +175,7 @@ fn main() {
         error!("specified interface is DOWN");
         return;
     }
-    let mac = if let Some(m) = args.value_of("mac") {
+    let mac = if let Some(m) = args.get_one::<String>("mac") {
         MacAddr::from_str(m).expect("error parsing provided MAC address")
     } else if let Some(m) = iface.mac {
         m
@@ -185,7 +184,7 @@ fn main() {
     };
     /* Parse ip address file specified */
     /* FIXME: .and_then(|path| File::open(path).map(|file| )).unwrap_or_default() ? */
-    let mut ip_list = if let Some(ref path) = args.value_of("ipfile") {
+    let mut ip_list = if let Some(ref path) = args.get_one::<String>("ipfile") {
         if let Ok(file) = File::open(path) {
             info!("parsing ip address file: {}", &path);
             file.extract_ip_addresses_only(None)
@@ -195,7 +194,7 @@ fn main() {
     } else {
         HashSet::new()
     };
-    if let Some(ip_inline_list) = args.value_of("iplist") {
+    if let Some(ip_inline_list) = args.get_one::<String>("iplist") {
         ip_list.extend(ip_inline_list.extract_ip_addresses_only(None));
     }
     let ip_addresses = if !ip_list.is_empty() {
