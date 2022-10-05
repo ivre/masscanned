@@ -109,7 +109,7 @@ OPTIONS:
 
 #### ARP
 
-`masscanned` anwsers to `ARP` requests, for requests that target an `IPv4` address
+`masscanned` answers to `ARP` requests, for requests that target an `IPv4` address
 that is handled by `masscanned` (*i.e.*, an address that is in the 
 IP address file given with option `-f`).
 
