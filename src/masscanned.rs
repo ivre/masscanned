@@ -24,7 +24,10 @@ use std::fs::File;
 use std::net::IpAddr;
 use std::str::FromStr;
 
-use clap::{Arg, ArgAction, Command};
+use clap::{
+    Arg, ArgAction, Command,
+    builder::PossibleValuesParser,
+};
 use log::*;
 use pnet::{
     datalink::{self, Channel::Ethernet, DataLinkReceiver, DataLinkSender, NetworkInterface},
@@ -35,7 +38,7 @@ use pnet::{
     util::MacAddr,
 };
 
-use crate::logger::{ConsoleLogger, MetaLogger};
+use crate::logger::{Logger, ConsoleLogger, LogfmtLogger, MetaLogger};
 use crate::utils::IpAddrParser;
 
 mod client;
@@ -145,6 +148,14 @@ fn main() {
                 .short('q')
                 .help("Quiet mode: do not output anything on stdout"),
         )
+        .arg(
+            Arg::new("format")
+                .long("format")
+                .help("Format in which to output logs")
+                .default_value("console")
+                .value_parser(PossibleValuesParser::new(["console", "logfmt"]))
+                .num_args(1),
+        )
         .get_matches();
     let verbose = args.value_source("verbosity").unwrap() as usize;
     /* initialise logger */
@@ -217,7 +228,18 @@ fn main() {
     info!("interface......{}", masscanned.iface.unwrap().name);
     info!("mac address....{}", masscanned.mac);
     if !args.contains_id("quiet") {
-        masscanned.log.add(Box::new(ConsoleLogger::new()));
+        if let Some(format) = args.get_one::<String>("format") {
+            let chosen_logger: Box<dyn Logger>  = match format.as_str() {
+                "console" => Box::new(ConsoleLogger::new()),
+                "logfmt" => Box::new(LogfmtLogger::new()),
+
+                // clap should already ensure we're using a valid format
+                _ => panic!("illegal format")
+            };
+            masscanned.log.add(chosen_logger);
+        } else {
+            masscanned.log.add(Box::new(ConsoleLogger::new()));
+        }
         masscanned.log.init();
     }
     let (mut tx, mut rx) = get_channel(masscanned.iface.unwrap());
