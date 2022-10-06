@@ -24,10 +24,7 @@ use std::fs::File;
 use std::net::IpAddr;
 use std::str::FromStr;
 
-use clap::{
-    Arg, ArgAction, Command,
-    builder::PossibleValuesParser,
-};
+use clap::{builder::PossibleValuesParser, Arg, ArgAction, Command};
 use log::*;
 use pnet::{
     datalink::{self, Channel::Ethernet, DataLinkReceiver, DataLinkSender, NetworkInterface},
@@ -38,7 +35,7 @@ use pnet::{
     util::MacAddr,
 };
 
-use crate::logger::{Logger, ConsoleLogger, LogfmtLogger, MetaLogger};
+use crate::logger::{ConsoleLogger, LogfmtLogger, Logger, MetaLogger};
 use crate::utils::IpAddrParser;
 
 mod client;
@@ -229,12 +226,12 @@ fn main() {
     info!("mac address....{}", masscanned.mac);
     if !args.contains_id("quiet") {
         if let Some(format) = args.get_one::<String>("format") {
-            let chosen_logger: Box<dyn Logger>  = match format.as_str() {
+            let chosen_logger: Box<dyn Logger> = match format.as_str() {
                 "console" => Box::new(ConsoleLogger::new()),
                 "logfmt" => Box::new(LogfmtLogger::new()),
 
                 // clap should already ensure we're using a valid format
-                _ => panic!("illegal format")
+                _ => panic!("illegal format"),
             };
             masscanned.log.add(chosen_logger);
         } else {

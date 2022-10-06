@@ -164,17 +164,17 @@ impl Logger for LogfmtLogger {
     fn eth_recv(&self, p: &EthernetPacket, c: &ClientInfo) {
         self.prolog("eth", "recv", false);
         self.client_info(c);
-        println!(" et={:}", p.get_ethertype(),);
+        println!(" eth_type={:}", p.get_ethertype(),);
     }
     fn eth_drop(&self, p: &EthernetPacket, c: &ClientInfo) {
         self.prolog("eth", "drop", false);
         self.client_info(c);
-        println!(" et={:}", p.get_ethertype(),);
+        println!(" eth_type={:}", p.get_ethertype(),);
     }
     fn eth_send(&self, p: &MutableEthernetPacket, c: &ClientInfo) {
         self.prolog("eth", "send", false);
         self.client_info(c);
-        println!(" et={:}", p.get_ethertype(),);
+        println!(" eth_type={:}", p.get_ethertype(),);
     }
     /* IPv4 */
     fn ipv4_enabled(&self) -> bool {
@@ -221,17 +221,29 @@ impl Logger for LogfmtLogger {
     fn icmpv4_recv(&self, p: &IcmpPacket, c: &ClientInfo) {
         self.prolog("icmpv4", "recv", false);
         self.client_info(c);
-        println!(" icmp_type={:?} icmp_code={:?}", p.get_icmp_type(), p.get_icmp_code(),);
+        println!(
+            " icmp_type={:?} icmp_code={:?}",
+            p.get_icmp_type(),
+            p.get_icmp_code(),
+        );
     }
     fn icmpv4_drop(&self, p: &IcmpPacket, c: &ClientInfo) {
         self.prolog("icmpv4", "drop", false);
         self.client_info(c);
-        println!(" icmp_type={:?} icmp_code={:?}", p.get_icmp_type(), p.get_icmp_code(),);
+        println!(
+            " icmp_type={:?} icmp_code={:?}",
+            p.get_icmp_type(),
+            p.get_icmp_code(),
+        );
     }
     fn icmpv4_send(&self, p: &MutableIcmpPacket, c: &ClientInfo) {
         self.prolog("icmpv4", "send", false);
         self.client_info(c);
-        println!(" icmp_type={:?} icmp_code={:?}", p.get_icmp_type(), p.get_icmp_code(),);
+        println!(
+            " icmp_type={:?} icmp_code={:?}",
+            p.get_icmp_type(),
+            p.get_icmp_code(),
+        );
     }
     /* ICMPv6 */
     fn icmpv6_enabled(&self) -> bool {
@@ -240,17 +252,29 @@ impl Logger for LogfmtLogger {
     fn icmpv6_recv(&self, p: &Icmpv6Packet, c: &ClientInfo) {
         self.prolog("icmpv6", "recv", false);
         self.client_info(c);
-        println!(" icmpv6_type={:?} icmpv6_code={:?}", p.get_icmpv6_type(), p.get_icmpv6_code(),);
+        println!(
+            " icmpv6_type={:?} icmpv6_code={:?}",
+            p.get_icmpv6_type(),
+            p.get_icmpv6_code(),
+        );
     }
     fn icmpv6_drop(&self, p: &Icmpv6Packet, c: &ClientInfo) {
         self.prolog("icmpv6", "drop", false);
         self.client_info(c);
-        println!(" icmpv6_type={:?} icmpv6_code={:?}", p.get_icmpv6_type(), p.get_icmpv6_code(),);
+        println!(
+            " icmpv6_type={:?} icmpv6_code={:?}",
+            p.get_icmpv6_type(),
+            p.get_icmpv6_code(),
+        );
     }
     fn icmpv6_send(&self, p: &MutableIcmpv6Packet, c: &ClientInfo) {
         self.prolog("icmpv6", "send", false);
         self.client_info(c);
-        println!(" icmpv6_type={:?} icmpv6_code={:?}", p.get_icmpv6_type(), p.get_icmpv6_code(),);
+        println!(
+            " icmpv6_type={:?} icmpv6_code={:?}",
+            p.get_icmpv6_type(),
+            p.get_icmpv6_code(),
+        );
     }
     /* TCP */
     fn tcp_enabled(&self) -> bool {
