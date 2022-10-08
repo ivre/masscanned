@@ -28,9 +28,11 @@ use pnet::packet::{
 use crate::client::ClientInfo;
 
 mod console;
+mod logfmt;
 mod meta;
 
 pub use console::ConsoleLogger;
+pub use logfmt::LogfmtLogger;
 pub use meta::MetaLogger;
 
 pub trait Logger {
