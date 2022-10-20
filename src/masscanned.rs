@@ -143,8 +143,9 @@ fn main() {
             Arg::new("quiet")
                 .long("quiet")
                 .short('q')
-                .help("Quiet mode: do not output anything on stdout")
-                .num_args(0),
+                .action(ArgAction::SetTrue)
+                .required(false)
+                .help("Quiet mode: do not output anything on stdout"),
         )
         .arg(
             Arg::new("format")
@@ -225,7 +226,10 @@ fn main() {
     };
     info!("interface......{}", masscanned.iface.unwrap().name);
     info!("mac address....{}", masscanned.mac);
-    if !args.contains_id("quiet") {
+    if !args
+        .get_one::<bool>("quiet")
+        .expect("unexpected error parsing argument")
+    {
         if let Some(format) = args.get_one::<String>("format") {
             let chosen_logger: Box<dyn Logger> = match format.as_str() {
                 "console" => Box::new(ConsoleLogger::new()),
