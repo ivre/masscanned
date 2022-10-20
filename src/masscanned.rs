@@ -143,7 +143,8 @@ fn main() {
             Arg::new("quiet")
                 .long("quiet")
                 .short('q')
-                .help("Quiet mode: do not output anything on stdout"),
+                .help("Quiet mode: do not output anything on stdout")
+                .num_args(0),
         )
         .arg(
             Arg::new("format")
