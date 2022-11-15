@@ -23,7 +23,7 @@ edition = "2018"
 [dependencies]
 bitflags = "1.2.1"
 byteorder = "1.4.3"
-chrono = "0.4.19"
+chrono = "0.4.23"
 clap = "4.0.24"
 dns-parser = "0.8.0"
 flate2 = "1.0"
