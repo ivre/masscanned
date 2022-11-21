@@ -31,7 +31,7 @@ itertools = "0.10.3"
 lazy_static = "1.4.0"
 log = "0.4.11"
 netdevice = "0.1.1"
-pcap = "0.11.0"
+pcap = "1.0.0"
 pcap-file = "1.1.1"
 pnet = { version = "0.31.0", features = ["std"] }
 rand = "0.8.4"
