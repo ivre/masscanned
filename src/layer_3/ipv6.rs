@@ -258,15 +258,20 @@ mod tests {
         let masscanned_ip_addr = Ipv6Addr::new(
             0x0000, 0x1111, 0x2222, 0x3333, 0x4444, 0x5555, 0x6666, 0x7777,
         );
+        let blacklist_ip_addr = Ipv6Addr::new(
+            0x1111, 0x1111, 0x1111, 0x1111, 0x1111, 0x1111, 0x1111, 0x1111,
+        );
         let mut ips = HashSet::new();
         ips.insert(IpAddr::V6(masscanned_ip_addr));
+        let mut blacklist_ips = HashSet::new();
+        blacklist_ips.insert(IpAddr::V6(blacklist_ip_addr));
         /* Construct masscanned context object */
         let masscanned = Masscanned {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            ignored_ip_addresses: Some(&blacklist_ips),
             log: MetaLogger::new(),
         };
         let mut ip_req =
@@ -293,6 +298,10 @@ mod tests {
         ip_req.set_destination(Ipv6Addr::new(
             0x0000, 0x1111, 0x2222, 0x3333, 0x4444, 0x5555, 0x6666, 0x7778,
         ));
+        assert!(repl(&ip_req.to_immutable(), &masscanned, &mut client_info) == None);
+        /* Send from a non-legitimate IP address */
+        ip_req.set_source(blacklist_ip_addr);
+        ip_req.set_destination(masscanned_ip_addr);
         assert!(repl(&ip_req.to_immutable(), &masscanned, &mut client_info) == None);
     }
 }
