@@ -239,6 +239,7 @@ mod tests {
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
             ip_addresses: None,
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let ip_src = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
@@ -306,6 +307,7 @@ mod tests {
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
             ip_addresses: None,
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();

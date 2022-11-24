@@ -112,6 +112,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let cookie = synackcookie::generate(&client_info, &masscanned.synack_key).unwrap();
@@ -166,6 +167,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let cookie = synackcookie::generate(&client_info, &masscanned.synack_key).unwrap();
@@ -226,6 +228,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let cookie = synackcookie::generate(&client_info, &masscanned.synack_key).unwrap();

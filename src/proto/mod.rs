@@ -216,6 +216,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         /***** TEST STUN - MAGIC *****/
@@ -276,6 +277,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         /***** TEST SSH *****/
@@ -317,6 +319,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         /***** TEST GHOST *****/
@@ -350,6 +353,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         /***** TEST COMPLETE REQUEST *****/
@@ -371,6 +375,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: None,
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let mut client_info = ClientInfo::new();

@@ -226,6 +226,7 @@ mod tests {
             mac: mac,
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         for proto in [EtherTypes::Ipv4, EtherTypes::Ipv6, EtherTypes::Arp] {
@@ -264,6 +265,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let mut eth_req = MutableEthernetPacket::owned(vec![

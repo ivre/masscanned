@@ -53,6 +53,16 @@ pub fn repl<'a, 'b>(
             return None;
         }
     }
+    /* If masscanned is configured with ignored IP addresses, then
+     * check if the src. IP address of the packet is one of
+     * those ignored by masscanned - if so, drop the packet.
+     **/
+    if let Some(ignored_ip_addr_list) = masscanned.ignored_ip_addresses {
+        if ignored_ip_addr_list.contains(&IpAddr::V4(ip_req.get_source())) {
+            masscanned.log.ipv4_drop(&ip_req, &client_info);
+            return None;
+        }
+    }
     /* Fill client info with transport layer procotol */
     client_info.transport = Some(ip_req.get_next_level_protocol());
     let mut ip_repl;
@@ -193,6 +203,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         for proto in [
@@ -240,6 +251,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let mut ip_req =

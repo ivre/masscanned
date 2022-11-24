@@ -41,14 +41,24 @@ pub fn repl<'a, 'b>(
     masscanned.log.ipv6_recv(ip_req, client_info);
     let src = ip_req.get_source();
     let mut dst = ip_req.get_destination();
-    /* If masscanned is configured with IP addresses, check that
-     * the dest. IP address corresponds to one of those
-     * Otherwise, drop the packet.
+    /* If masscanned is configured with IP addresses, then
+     * check that the dest. IP address of the packet is one of
+     * those handled by masscanned - otherwise, drop the packet.
      **/
     if let Some(ip_addr_list) = masscanned.ip_addresses {
         if !ip_addr_list.contains(&IpAddr::V6(dst))
             && ip_req.get_next_header() != IpNextHeaderProtocols::Icmpv6
         {
+            masscanned.log.ipv6_drop(ip_req, client_info);
+            return None;
+        }
+    }
+    /* If masscanned is configured with ignored IP addresses, then
+     * check if the src. IP address of the packet is one of
+     * those ignored by masscanned - if so, drop the packet.
+     **/
+    if let Some(ignored_ip_addr_list) = masscanned.ignored_ip_addresses {
+        if ignored_ip_addr_list.contains(&IpAddr::V6(src)) {
             masscanned.log.ipv6_drop(ip_req, client_info);
             return None;
         }
@@ -206,6 +216,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         for proto in [
@@ -255,6 +266,7 @@ mod tests {
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
             ip_addresses: Some(&ips),
+            ignored_ip_addresses: None,
             log: MetaLogger::new(),
         };
         let mut ip_req =

@@ -57,6 +57,7 @@ pub struct Masscanned<'a> {
     /* iface is an Option to make tests easier */
     pub iface: Option<&'a NetworkInterface>,
     pub ip_addresses: Option<&'a HashSet<IpAddr>>,
+    pub ignored_ip_addresses: Option<&'a HashSet<IpAddr>>,
     /* loggers */
     pub log: MetaLogger,
 }
@@ -131,6 +132,18 @@ fn main() {
             Arg::new("iplist")
                 .long("ip-addr")
                 .help("Inline list of IP addresses to impersonate, comma-separated")
+                .num_args(1),
+        )
+        .arg(
+            Arg::new("ignoredipfile")
+                .long("ignored-ip-addr-file")
+                .help("File with the list of IP addresses to NOT respond to")
+                .num_args(1),
+        )
+        .arg(
+            Arg::new("ignorediplist")
+                .long("ignored-ip-addr")
+                .help("Inline list of IP addresses to NOT respond to, comma-separated")
                 .num_args(1),
         )
         .arg(
@@ -217,11 +230,34 @@ fn main() {
         info!("binding........::");
         None
     };
+    let mut ignored_ip_list = if let Some(ref path) = args.get_one::<String>("ignoredipfile") {
+        if let Ok(file) = File::open(path) {
+            info!("parsing ignored ip address file: {}", &path);
+            file.extract_ip_addresses_only(None)
+        } else {
+            HashSet::new()
+        }
+    } else {
+        HashSet::new()
+    };
+    if let Some(ignored_ip_inline_list) = args.get_one::<String>("ignorediplist") {
+        ignored_ip_list.extend(ignored_ip_inline_list.extract_ip_addresses_only(None));
+    }
+    let ignored_ip_addresses = if !ignored_ip_list.is_empty() {
+        for ip in &ignored_ip_list {
+            info!("ignoring.......{}", ip);
+        }
+        Some(&ignored_ip_list)
+    } else {
+        None
+    };
+
     let mut masscanned = Masscanned {
         synack_key: [0, 0],
         mac,
         iface: Some(&iface),
         ip_addresses,
+        ignored_ip_addresses,
         log: MetaLogger::new(),
     };
     info!("interface......{}", masscanned.iface.unwrap().name);

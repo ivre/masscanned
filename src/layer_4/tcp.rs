@@ -146,6 +146,7 @@ mod tests {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
             ip_addresses: None,
+            ignored_ip_addresses: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),
@@ -197,6 +198,7 @@ mod tests {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
             ip_addresses: None,
+            ignored_ip_addresses: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),
@@ -248,6 +250,7 @@ mod tests {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
             ip_addresses: None,
+            ignored_ip_addresses: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),
@@ -298,6 +301,7 @@ mod tests {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
             ip_addresses: None,
+            ignored_ip_addresses: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),
