@@ -93,14 +93,17 @@ USAGE:
     masscanned [OPTIONS] --iface <iface>
 
 OPTIONS:
-    -h, --help                     Print help information
-    -i, --iface <iface>            the interface to use for receiving/sending packets
-        --ip-addr <iplist>         Inline list of IP addresses to impersonate, comma-separated
-        --ip-addr-file <ipfile>    File with the list of IP addresses to impersonate
-    -m, --mac-addr <mac>           MAC address to use in the response packets
-    -q, --quiet                    Quiet mode: does not output anything on stdout
-    -v                             Increase message verbosity
-    -V, --version                  Print version information
+    -h, --help                                    Print help information
+    -i, --iface <iface>                           the interface to use for receiving/sending packets
+        --ip-addr <iplist>                        Inline list of IP addresses to impersonate, comma-separated
+        --ip-addr-file <ipfile>                   File with the list of IP addresses to impersonate
+        --ip-addr <iplist>                        Inline list of IP addresses to impersonate, comma-separated
+        --ignored-ip-addr-file <ignoredipfile>    File with the list of IP addresses to NOT respond to
+    -m, --mac-addr <mac>                          MAC address to use in the response packets
+    -q, --quiet                                   Quiet mode: does not output anything on stdout
+    --format <format>                             Format in which to output logs [default: console] [others: logfmt]
+    -v                                            Increase message verbosity
+    -V, --version                                 Print version information
 ```
 
 ## Supported protocols - details
