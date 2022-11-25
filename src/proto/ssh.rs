@@ -57,6 +57,27 @@ impl ProtocolState {
     }
 }
 
+/* Reconstruct client's banner from the parsed information */
+fn ssh_banner(pstate: &ProtocolState) -> Vec<u8> {
+    let mut banner = b"SSH-".to_vec();
+    for b in &pstate.ssh_version {
+        banner.push(*b);
+    }
+    banner.push(b'-');
+    for b in &pstate.ssh_software {
+        banner.push(*b);
+    }
+    if pstate.ssh_comment.len() > 0 {
+        banner.push(b' ');
+        for b in &pstate.ssh_comment {
+            banner.push(*b);
+        }
+    }
+    banner.push(b'\r');
+    banner.push(b'\n');
+    banner
+}
+
 fn ssh_parse(pstate: &mut ProtocolState, data: &[u8]) {
     /* RFC 4253:
      *
@@ -218,6 +239,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -231,6 +253,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* byte by byte */
         let test_banner = b"SSH-1.99-SOFTWARE COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -254,6 +277,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -279,6 +303,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFT");
         assert!(pstate.ssh_comment == b"WARE COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* space in comment */
         let test_banner = b"SSH-2.0-SOFTWARE COM MENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -288,6 +313,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM MENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* double space */
         let test_banner = b"SSH-2.0-SOFTWARE  COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -297,6 +323,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b" COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -322,6 +349,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFT");
         assert!(pstate.ssh_comment == b"WARE COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* space in comment */
         let test_banner = b"SSH-1.99-SOFTWARE COM MENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -331,6 +359,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM MENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* double space */
         let test_banner = b"SSH-1.99-SOFTWARE  COMMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -340,6 +369,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b" COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -365,6 +395,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFT\rWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* CR in COMMENT */
         let test_banner = b"SSH-2.0-SOFTWARE COM\rMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -374,6 +405,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM\rMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* CR at the end */
         let test_banner = b"SSH-2.0-SOFTWARE COMMENT\r\r\n";
         let mut pstate = ProtocolState::new();
@@ -383,6 +415,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT\r");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -408,6 +441,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFT\rWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* CR in COMMENT */
         let test_banner = b"SSH-1.99-SOFTWARE COM\rMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -417,6 +451,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM\rMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* CR at the end */
         let test_banner = b"SSH-1.99-SOFTWARE COMMENT\r\r\n";
         let mut pstate = ProtocolState::new();
@@ -426,6 +461,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT\r");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -451,6 +487,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFT\nWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* LF in COMMENT */
         let test_banner = b"SSH-2.0-SOFTWARE COM\nMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -460,6 +497,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM\nMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* LF at the end */
         let test_banner = b"SSH-2.0-SOFTWARE COMMENT\n\r\n";
         let mut pstate = ProtocolState::new();
@@ -469,6 +507,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT\n");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -494,6 +533,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFT\nWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* LF in COMMENT */
         let test_banner = b"SSH-1.99-SOFTWARE COM\nMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -503,6 +543,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM\nMENT");
+        assert!(ssh_banner(&pstate) == test_banner);
         /* LF at the end */
         let test_banner = b"SSH-1.99-SOFTWARE COMMENT\n\r\n";
         let mut pstate = ProtocolState::new();
@@ -512,6 +553,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT\n");
+        assert!(ssh_banner(&pstate) == test_banner);
     }
 
     #[test]
@@ -537,6 +579,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFT");
         assert!(pstate.ssh_comment == b"");
+        assert!(ssh_banner(&pstate) == b"SSH-2.0-SOFT\r\n");
         /* CRLF in COMMENT */
         let test_banner = b"SSH-2.0-SOFTWARE COM\r\nMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -546,6 +589,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM");
+        assert!(ssh_banner(&pstate) == b"SSH-2.0-SOFTWARE COM\r\n");
         /* CRLF at the end */
         let test_banner = b"SSH-2.0-SOFTWARE COMMENT\r\n\r\n";
         let mut pstate = ProtocolState::new();
@@ -555,6 +599,7 @@ mod tests {
         assert!(pstate.ssh_version == b"2.0");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == b"SSH-2.0-SOFTWARE COMMENT\r\n");
     }
 
     #[test]
@@ -580,6 +625,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFT");
         assert!(pstate.ssh_comment == b"");
+        assert!(ssh_banner(&pstate) == b"SSH-1.99-SOFT\r\n");
         /* CRLF in COMMENT */
         let test_banner = b"SSH-1.99-SOFTWARE COM\r\nMENT\r\n";
         let mut pstate = ProtocolState::new();
@@ -589,6 +635,7 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COM");
+        assert!(ssh_banner(&pstate) == b"SSH-1.99-SOFTWARE COM\r\n");
         /* CRLF at the end */
         let test_banner = b"SSH-1.99-SOFTWARE COMMENT\r\n\r\n";
         let mut pstate = ProtocolState::new();
@@ -598,5 +645,6 @@ mod tests {
         assert!(pstate.ssh_version == b"1.99");
         assert!(pstate.ssh_software == b"SOFTWARE");
         assert!(pstate.ssh_comment == b"COMMENT");
+        assert!(ssh_banner(&pstate) == b"SSH-1.99-SOFTWARE COMMENT\r\n");
     }
 }
