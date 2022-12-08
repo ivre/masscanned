@@ -1199,8 +1199,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
-            ip_addresses: None,
-            ignored_ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -1268,8 +1268,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
-            ip_addresses: None,
-            ignored_ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -1332,8 +1332,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
-            ip_addresses: None,
-            ignored_ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -1394,8 +1394,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
             iface: None,
-            ip_addresses: None,
-            ignored_ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();

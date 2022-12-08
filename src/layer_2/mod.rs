@@ -113,7 +113,7 @@ pub fn reply<'a, 'b>(
      * is authorized to answer to (avoid answering to packets addressed to
      * other machines)
      **/
-    if !get_authorized_eth_addr(&masscanned.mac, masscanned.ip_addresses)
+    if !get_authorized_eth_addr(&masscanned.mac, masscanned.self_ip_list)
         .contains(&eth_req.get_destination())
     {
         masscanned.log.eth_drop(eth_req, &client_info);
@@ -225,8 +225,8 @@ mod tests {
             synack_key: [0, 0],
             mac: mac,
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         for proto in [EtherTypes::Ipv4, EtherTypes::Ipv6, EtherTypes::Arp] {
@@ -264,8 +264,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let mut eth_req = MutableEthernetPacket::owned(vec![

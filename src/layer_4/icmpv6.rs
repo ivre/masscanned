@@ -40,7 +40,7 @@ pub fn nd_ns_repl<'a, 'b>(
      * check that the dest. IP address of the packet is one of
      * those handled by masscanned - otherwise, drop the packet.
      **/
-    if let Some(addresses) = masscanned.ip_addresses {
+    if let Some(addresses) = masscanned.self_ip_list {
         if !addresses.contains(&IpAddr::V6(nd_ns_req.get_target_addr())) {
             return None;
         }
@@ -172,8 +172,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         /* Legitimate solicitation */
@@ -246,8 +246,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let mut icmpv6_echo_req = MutableIcmpv6Packet::owned(vec![

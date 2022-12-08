@@ -38,7 +38,7 @@ pub fn repl<'a, 'b>(
             masscanned.log.arp_recv(arp_req);
             let ip = IpAddr::V4(arp_req.get_target_proto_addr());
             /* Ignore ARP requests for IP addresses not handled by masscanned */
-            if let Some(ip_addr_list) = masscanned.ip_addresses {
+            if let Some(ip_addr_list) = masscanned.self_ip_list {
                 if !ip_addr_list.contains(&ip) {
                     masscanned.log.arp_drop(arp_req);
                     return None;
@@ -83,8 +83,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let mut arp_req =

@@ -45,7 +45,7 @@ pub fn repl<'a, 'b>(
      * check that the dest. IP address of the packet is one of
      * those handled by masscanned - otherwise, drop the packet.
      **/
-    if let Some(ip_addr_list) = masscanned.ip_addresses {
+    if let Some(ip_addr_list) = masscanned.self_ip_list {
         if !ip_addr_list.contains(&IpAddr::V6(dst))
             && ip_req.get_next_header() != IpNextHeaderProtocols::Icmpv6
         {
@@ -53,12 +53,12 @@ pub fn repl<'a, 'b>(
             return None;
         }
     }
-    /* If masscanned is configured with ignored IP addresses, then
+    /* If masscanned is configured with a remote ip deny list, then
      * check if the src. IP address of the packet is one of
      * those ignored by masscanned - if so, drop the packet.
      **/
-    if let Some(ignored_ip_addr_list) = masscanned.ignored_ip_addresses {
-        if ignored_ip_addr_list.contains(&IpAddr::V6(src)) {
+    if let Some(remote_ip_deny_list) = masscanned.remote_ip_deny_list {
+        if remote_ip_deny_list.contains(&IpAddr::V6(src)) {
             masscanned.log.ipv6_drop(ip_req, client_info);
             return None;
         }
@@ -215,8 +215,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         for proto in [
@@ -270,8 +270,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: Some(&blacklist_ips),
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: Some(&blacklist_ips),
             log: MetaLogger::new(),
         };
         let mut ip_req =

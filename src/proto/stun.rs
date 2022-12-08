@@ -442,8 +442,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         let payload_resp = if let Some(r) = repl(payload, &masscanned, &mut client_info, None) {
@@ -503,8 +503,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V6(test_ip_addr));
@@ -556,8 +556,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
@@ -607,8 +607,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
-            ignored_ip_addresses: None,
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
