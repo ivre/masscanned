@@ -163,7 +163,7 @@ masscanned = subprocess.Popen(
         "-vvvvv",
         "-i",
         f"{IFACE}b",
-        "--ip-addr-file",
+        "--self-ip-file",
         ipfile.name,
         "-m",
         MAC_ADDR,

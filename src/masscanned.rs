@@ -56,7 +56,8 @@ pub struct Masscanned<'a> {
     pub mac: MacAddr,
     /* iface is an Option to make tests easier */
     pub iface: Option<&'a NetworkInterface>,
-    pub ip_addresses: Option<&'a HashSet<IpAddr>>,
+    pub self_ip_list: Option<&'a HashSet<IpAddr>>,
+    pub remote_ip_deny_list: Option<&'a HashSet<IpAddr>>,
     /* loggers */
     pub log: MetaLogger,
 }
@@ -122,15 +123,29 @@ fn main() {
                 .num_args(1),
         )
         .arg(
-            Arg::new("ipfile")
-                .long("ip-addr-file")
-                .help("File with the list of IP addresses to impersonate")
+            Arg::new("selfipfile")
+                .long("self-ip-file")
+                .help("File with the list of IP addresses handled by masscanned")
                 .num_args(1),
         )
         .arg(
-            Arg::new("iplist")
-                .long("ip-addr")
-                .help("Inline list of IP addresses to impersonate, comma-separated")
+            Arg::new("selfiplist")
+                .long("self-ip-list")
+                .help("Inline list of IP addresses handled by masscanned, comma-separated")
+                .num_args(1),
+        )
+        .arg(
+            Arg::new("remoteipdenyfile")
+                .long("remote-ip-deny-file")
+                .help(
+                    "File with the list of IP addresses from which masscanned will ignore packets",
+                )
+                .num_args(1),
+        )
+        .arg(
+            Arg::new("remoteipdenylist")
+                .long("remote-ip-deny-list")
+                .help("Inline list of IP addresses from which masscanned will ignore packets")
                 .num_args(1),
         )
         .arg(
@@ -194,9 +209,9 @@ fn main() {
     };
     /* Parse ip address file specified */
     /* FIXME: .and_then(|path| File::open(path).map(|file| )).unwrap_or_default() ? */
-    let mut ip_list = if let Some(ref path) = args.get_one::<String>("ipfile") {
+    let mut ip_list = if let Some(ref path) = args.get_one::<String>("selfipfile") {
         if let Ok(file) = File::open(path) {
-            info!("parsing ip address file: {}", &path);
+            info!("parsing self ip file: {}", &path);
             file.extract_ip_addresses_only(None)
         } else {
             HashSet::new()
@@ -204,10 +219,10 @@ fn main() {
     } else {
         HashSet::new()
     };
-    if let Some(ip_inline_list) = args.get_one::<String>("iplist") {
-        ip_list.extend(ip_inline_list.extract_ip_addresses_only(None));
+    if let Some(ip_inline) = args.get_one::<String>("selfiplist") {
+        ip_list.extend(ip_inline.extract_ip_addresses_only(None));
     }
-    let ip_addresses = if !ip_list.is_empty() {
+    let self_ip_list = if !ip_list.is_empty() {
         for ip in &ip_list {
             info!("binding........{}", ip);
         }
@@ -217,11 +232,35 @@ fn main() {
         info!("binding........::");
         None
     };
+    /* Parse remote ip deny file specified */
+    let mut ip_list = if let Some(ref path) = args.get_one::<String>("remoteipdenyfile") {
+        if let Ok(file) = File::open(path) {
+            info!("parsing remote ip deny file: {}", &path);
+            file.extract_ip_addresses_only(None)
+        } else {
+            HashSet::new()
+        }
+    } else {
+        HashSet::new()
+    };
+    if let Some(ip_inline) = args.get_one::<String>("remoteipdenylist") {
+        ip_list.extend(ip_inline.extract_ip_addresses_only(None));
+    }
+    let remote_ip_deny_list = if !ip_list.is_empty() {
+        for ip in &ip_list {
+            info!("ignoring.......{}", ip);
+        }
+        Some(&ip_list)
+    } else {
+        None
+    };
+
     let mut masscanned = Masscanned {
         synack_key: [0, 0],
         mac,
         iface: Some(&iface),
-        ip_addresses,
+        self_ip_list,
+        remote_ip_deny_list,
         log: MetaLogger::new(),
     };
     info!("interface......{}", masscanned.iface.unwrap().name);

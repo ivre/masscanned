@@ -86,21 +86,33 @@ A documentation on how to deploy an instance of **masscanned** on a VPS is comin
 ### Supported options
 
 ```
-Network responder - answer them all 0.2.0
 Network answering machine for various network protocols (L2-L3-L4 + applications)
 
-USAGE:
-    masscanned [OPTIONS] --iface <iface>
+Usage: masscanned [OPTIONS] --iface <iface>
 
-OPTIONS:
-    -h, --help                     Print help information
-    -i, --iface <iface>            the interface to use for receiving/sending packets
-        --ip-addr <iplist>         Inline list of IP addresses to impersonate, comma-separated
-        --ip-addr-file <ipfile>    File with the list of IP addresses to impersonate
-    -m, --mac-addr <mac>           MAC address to use in the response packets
-    -q, --quiet                    Quiet mode: does not output anything on stdout
-    -v                             Increase message verbosity
-    -V, --version                  Print version information
+Options:
+  -i, --iface <iface>
+          the interface to use for receiving/sending packets
+  -m, --mac-addr <mac>
+          MAC address to use in the response packets
+      --self-ip-file <selfipfile>
+          File with the list of IP addresses handled by masscanned
+      --self-ip-list <selfiplist>
+          Inline list of IP addresses handled by masscanned, comma-separated
+      --remote-ip-deny-file <remoteipdenyfile>
+          File with the list of IP addresses from which masscanned will ignore packets
+      --remote-ip-deny-list <remoteipdenylist>
+          Inline list of IP addresses from which masscanned will ignore packets
+  -v...
+          Increase message verbosity
+  -q, --quiet
+          Quiet mode: do not output anything on stdout
+      --format <format>
+          Format in which to output logs [default: console] [possible values: console, logfmt]
+  -h, --help
+          Print help information
+  -V, --version
+          Print version information
 ```
 
 ## Supported protocols - details

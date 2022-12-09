@@ -145,7 +145,8 @@ mod tests {
     fn test_tcp_fin_ack() {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
-            ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),
@@ -196,7 +197,8 @@ mod tests {
     fn test_tcp_fin_ack_wrap() {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
-            ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),
@@ -247,7 +249,8 @@ mod tests {
     fn test_synack_cookie_ipv4() {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
-            ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),
@@ -297,7 +300,8 @@ mod tests {
     fn test_synack_cookie_ipv6() {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
-            ip_addresses: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
             synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
             iface: None,
             log: MetaLogger::new(),

@@ -47,8 +47,18 @@ pub fn repl<'a, 'b>(
      * check that the dest. IP address of the packet is one of
      * those handled by masscanned - otherwise, drop the packet.
      **/
-    if let Some(ip_addr_list) = masscanned.ip_addresses {
+    if let Some(ip_addr_list) = masscanned.self_ip_list {
         if !ip_addr_list.contains(&IpAddr::V4(ip_req.get_destination())) {
+            masscanned.log.ipv4_drop(&ip_req, &client_info);
+            return None;
+        }
+    }
+    /* If masscanned is configured with a remote ip deny list, then
+     * check if the src. IP address of the packet is one of
+     * those ignored by masscanned - if so, drop the packet.
+     **/
+    if let Some(remote_ip_deny_list) = masscanned.remote_ip_deny_list {
+        if remote_ip_deny_list.contains(&IpAddr::V4(ip_req.get_source())) {
             masscanned.log.ipv4_drop(&ip_req, &client_info);
             return None;
         }
@@ -192,7 +202,8 @@ mod tests {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: None,
             log: MetaLogger::new(),
         };
         for proto in [
@@ -232,14 +243,18 @@ mod tests {
         let mut client_info = ClientInfo::new();
         let test_ip_addr = Ipv4Addr::new(3, 2, 1, 0);
         let masscanned_ip_addr = Ipv4Addr::new(0, 1, 2, 3);
+        let blacklist_ip_addr = Ipv4Addr::new(3, 3, 3, 3);
         let mut ips = HashSet::new();
         ips.insert(IpAddr::V4(masscanned_ip_addr));
+        let mut blacklist_ips = HashSet::new();
+        blacklist_ips.insert(IpAddr::V4(blacklist_ip_addr));
         /* Construct masscanned context object */
         let masscanned = Masscanned {
             synack_key: [0, 0],
             mac: MacAddr::from_str("00:11:22:33:44:55").expect("error parsing MAC address"),
             iface: None,
-            ip_addresses: Some(&ips),
+            self_ip_list: Some(&ips),
+            remote_ip_deny_list: Some(&blacklist_ips),
             log: MetaLogger::new(),
         };
         let mut ip_req =
@@ -268,6 +283,10 @@ mod tests {
         }
         /* Send to a non-legitimate IP address */
         ip_req.set_destination(Ipv4Addr::new(2, 2, 2, 2));
+        assert!(repl(&ip_req.to_immutable(), &masscanned, &mut client_info) == None);
+        /* Send from a non-legitimate IP address */
+        ip_req.set_source(blacklist_ip_addr);
+        ip_req.set_destination(masscanned_ip_addr);
         assert!(repl(&ip_req.to_immutable(), &masscanned, &mut client_info) == None);
     }
 }
