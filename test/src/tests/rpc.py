@@ -61,11 +61,15 @@ def test_rpc_nmap():
             "tcp" if scan == "S" else "udp"
         ), f"Unexpected proto {port['protocol']} for scan {scan}"
         assert port["service_name"] in {
-            "rpcbind",
             "nfs",
+            "rpcbind",
+            "rstatd",
+            "rusersd",
         }, f"Unexpected service_name: {port['service_name']}"
         assert port["service_extrainfo"] in {
             "RPC #100000",
+            "RPC #100001",
+            "RPC #100002",
             "RPC #100003",
         }, f"Unexpected service_extrainfo: {port['service_extrainfo']}"
         assert (
