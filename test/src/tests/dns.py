@@ -70,11 +70,11 @@ def test_ipv4_udp_dns_in_a():
                     dns_req.qd[0]
                 ), "query in request and response do not match"
                 assert raw(dns_rep.qd[0].qname) == raw(
-                    dns_req.qd[0].qname + b"."
-                ), "if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                    dns_req.qd[0].qname
+                ), "qname query in request and response do not match"
                 assert (
-                    dns_rep.an[0].rrname == dns_req.qd[0].qname + b"."
-                ), "if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                    dns_rep.an[0].rrname == dns_req.qd[0].qname
+                ), "rrname in answer does not match qname in request"
                 assert (
                     dns_rep.an[0].rclass == dns_req.qd[0].qclass
                 ), "class in answer does not match query"
@@ -132,17 +132,17 @@ def test_ipv4_udp_dns_in_a_multiple_queries():
             for i, q in enumerate(qd):
                 assert raw(dns_rep.qd[i]) == raw(
                     dns_req.qd[i]
-                ), "query in request and response do not match"
+                ), f"query in request and response do not match ({i})"
                 assert raw(dns_rep.qd[i].qname) == raw(
-                    dns_req.qd[i].qname + b"."
-                ), "if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                    dns_req.qd[i].qname
+                ), f"qname query in request and response do not match ({i})"
                 assert (
-                    dns_rep.an[i].rrname == dns_req.qd[i].qname + b"."
-                ), "if this test fails, it may mean that scapy fixed the bug in dns.py L134 - if that is so, remove \" + b'.'\" in the test"
+                    dns_rep.an[i].rrname == dns_req.qd[i].qname
+                ), f"rrname in answer does not match qname in request ({i})"
                 assert (
                     dns_rep.an[i].rclass == dns_req.qd[i].qclass
-                ), "class in answer does not match query"
+                ), f"class in answer does not match query ({i})"
                 assert (
                     dns_rep.an[i].type == dns_req.qd[i].qtype
-                ), "type in answer does not match query"
+                ), f"type in answer does not match query ({i})"
                 assert dns_rep.an[i].rdata == IPV4_ADDR
