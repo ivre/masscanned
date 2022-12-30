@@ -282,7 +282,7 @@ def test_ipv6_tcp_psh_ack():
 @test
 def test_tcp_syn_with_flags():
     # send a SYN packet with other TCP flags, should not be answered
-    for flags in ['SA', 'SR', 'SF', 'SP']:
+    for flags in ["SA", "SR", "SF", "SP"]:
         seq_init = int(RandInt())
         syn = (
             Ether(dst=MAC_ADDR)
