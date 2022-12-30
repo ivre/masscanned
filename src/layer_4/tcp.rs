@@ -142,6 +142,68 @@ mod tests {
     use crate::logger::MetaLogger;
 
     #[test]
+    fn test_tcp_syn() {
+        let masscanned = Masscanned {
+            mac: MacAddr(0, 0, 0, 0, 0, 0),
+            self_ip_list: None,
+            remote_ip_deny_list: None,
+            synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
+            iface: None,
+            log: MetaLogger::new(),
+        };
+        /* reference */
+        let ip_src = IpAddr::V4(Ipv4Addr::new(27, 198, 143, 1));
+        let ip_dst = IpAddr::V4(Ipv4Addr::new(90, 64, 122, 203));
+        let tcp_sport = 65500;
+        let tcp_dport = 80;
+        let seq = 1234567;
+        let ack = 0;
+        let mut client_info = ClientInfo {
+            mac: ClientInfoSrcDst {
+                src: None,
+                dst: None,
+            },
+            ip: ClientInfoSrcDst {
+                src: Some(ip_src),
+                dst: Some(ip_dst),
+            },
+            transport: None,
+            port: ClientInfoSrcDst {
+                src: Some(tcp_sport),
+                dst: Some(tcp_dport),
+            },
+            cookie: None,
+        };
+        let mut tcp_req =
+            MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()]).unwrap();
+        tcp_req.set_source(tcp_sport);
+        tcp_req.set_destination(tcp_dport);
+        tcp_req.set_sequence(seq);
+        tcp_req.set_acknowledgement(ack);
+        tcp_req.set_flags(TcpFlags::SYN);
+        let some_tcp_repl = repl(&tcp_req.to_immutable(), &masscanned, &mut client_info);
+        if some_tcp_repl == None {
+            panic!("expected a reply, got none");
+        }
+        let tcp_repl = some_tcp_repl.unwrap();
+        /* check reply flags */
+        assert!(tcp_repl.get_flags() == (TcpFlags::SYN | TcpFlags::ACK));
+        /* check reply seq and ack */
+        assert!(tcp_repl.get_acknowledgement() == seq.wrapping_add(1));
+        let mut tcp_req =
+            MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()]).unwrap();
+        tcp_req.set_source(tcp_sport);
+        tcp_req.set_destination(tcp_dport);
+        tcp_req.set_sequence(seq);
+        tcp_req.set_acknowledgement(ack);
+        tcp_req.set_flags(TcpFlags::SYN | TcpFlags::ACK);
+        let some_tcp_repl = repl(&tcp_req.to_immutable(), &masscanned, &mut client_info);
+        if some_tcp_repl != None {
+            panic!("expected no reply, got one");
+        }
+    }
+
+    #[test]
     fn test_tcp_fin_ack() {
         let masscanned = Masscanned {
             mac: MacAddr(0, 0, 0, 0, 0, 0),
