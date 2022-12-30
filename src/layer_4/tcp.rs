@@ -105,7 +105,7 @@ pub fn repl<'a, 'b>(
             tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
         /* Answer to SYN */
-        flags if flags & TcpFlags::SYN == TcpFlags::SYN => {
+        flags if flags == TcpFlags::SYN => {
             tcp_repl = MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()])
                 .expect("error constructing a TCP packet");
             tcp_repl.set_flags(TcpFlags::ACK);
