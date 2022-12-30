@@ -277,3 +277,17 @@ def test_ipv6_tcp_psh_ack():
     assert TCP in ack, "expecting TCP, got %r" % ack.summary()
     ack = ack[TCP]
     assert ack.flags == "A", "expecting TCP A, got %r" % syn_ack.flags
+
+
+@test
+def test_tcp_syn_with_flags():
+    # send a SYN packet with other TCP flags, should not be answered
+    for flags in ['SA', 'SR', 'SF', 'SP']:
+        seq_init = int(RandInt())
+        syn = (
+            Ether(dst=MAC_ADDR)
+            / IP(dst=IPV4_ADDR)
+            / TCP(flags=flags, dport=80, seq=seq_init)
+        )
+        syn_ack = srp1(syn, timeout=1)
+        assert syn_ack is None, "expecting no answer, got one"
