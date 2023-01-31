@@ -57,27 +57,6 @@ impl ProtocolState {
     }
 }
 
-/* Reconstruct client's banner from the parsed information */
-fn ssh_banner(pstate: &ProtocolState) -> Vec<u8> {
-    let mut banner = b"SSH-".to_vec();
-    for b in &pstate.ssh_version {
-        banner.push(*b);
-    }
-    banner.push(b'-');
-    for b in &pstate.ssh_software {
-        banner.push(*b);
-    }
-    if pstate.ssh_comment.len() > 0 {
-        banner.push(b' ');
-        for b in &pstate.ssh_comment {
-            banner.push(*b);
-        }
-    }
-    banner.push(b'\r');
-    banner.push(b'\n');
-    banner
-}
-
 fn ssh_parse(pstate: &mut ProtocolState, data: &[u8]) {
     /* RFC 4253:
      *
@@ -204,6 +183,27 @@ pub fn repl<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /* Reconstruct client's banner from the parsed information */
+    fn ssh_banner(pstate: &ProtocolState) -> Vec<u8> {
+        let mut banner = b"SSH-".to_vec();
+        for b in &pstate.ssh_version {
+            banner.push(*b);
+        }
+        banner.push(b'-');
+        for b in &pstate.ssh_software {
+            banner.push(*b);
+        }
+        if pstate.ssh_comment.len() > 0 {
+            banner.push(b' ');
+            for b in &pstate.ssh_comment {
+                banner.push(*b);
+            }
+        }
+        banner.push(b'\r');
+        banner.push(b'\n');
+        banner
+    }
 
     #[test]
     fn ssh_2_banner_parse() {
