@@ -37,7 +37,7 @@ pnet = { version = "0.33.0", features = ["std"] }
 rand = "0.8.4"
 siphasher = "0.3"
 stderrlog = "0.5.4"
-strum = "0.24.1"
+strum = "0.25.0"
 strum_macros = "0.24.2"
 
 [[bin]]
