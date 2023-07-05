@@ -1,0 +1,35 @@
+#! /bin/bash
+# This file is part of masscanned.
+# Copyright 2021 - 2023 The IVRE project
+#
+# Masscanned is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Masscanned is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
+
+iface="$(ip route get 0.0.0.1 | awk '/^0\.0\.0\.1 via / {print $5}')"
+addrs="$(ip a show  eth0 | awk '/ inet6? / {print $2}' | sed 's#/.*##' | tr '\n' ',' | sed 's#,$##')"
+
+if ! capsh --print | awk '/^Current: / {print $2}' | tr ',' '\n' | grep -q '^cap_net_admin$'; then
+    echo "WARNING: cannot run iptables (need capability cap_net_admin)" >&2
+    exit 1
+fi
+
+for v in '' 6; do
+    for c in INPUT OUTPUT FORWARD; do
+        ip${v}tables -P $c DROP
+    done
+done
+
+echo Interface: "$iface"
+echo Addresses: "$addrs"
+
+/usr/local/bin/masscanned -i "$iface" --self-ip-list "$addrs"
