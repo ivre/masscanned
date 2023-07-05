@@ -217,7 +217,11 @@ code `0` and the same payload as the incoming packet, as specified by [RFC 792](
 a supported protocol (Layer 5/6/7) has been detected,
 * if the received packet has flag `ACK`, it is ignored,
 * if the received packet has flag `RST` or `FIN-ACK`, it is ignored,
-* if the received packet has flag `SYN`, then `masscanned` answers with a `SYN-ACK` packet, setting a **SYNACK-cookie** in the sequence number.  
+* if the received packet has flag `SYN`, then `masscanned` tries to imitate the behaviour
+of a standard Linux stack - which is:
+    * if there are additional flags that are not among `PSH`, `URG`, `CWR`, `ECE`, then the `SYN` is ignored,
+    * if the flags `CWR` and`ECE` are simultaneously set, then the `SYN` is ignored,
+    * in any other case, `masscanned` answers with a `SYN-ACK` packet, setting a **SYNACK-cookie** in the sequence number.  
 
 #### UDP
 

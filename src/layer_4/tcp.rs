@@ -104,8 +104,14 @@ pub fn repl<'a, 'b>(
             tcp_repl.set_acknowledgement(tcp_req.get_sequence().wrapping_add(1));
             tcp_repl.set_sequence(tcp_req.get_acknowledgement());
         }
-        /* Answer to SYN */
-        flags if flags & TcpFlags::SYN == TcpFlags::SYN => {
+        /* Answer to SYN  + P|U|C|E + !(C && E) to imitate Linux network stack */
+        flags
+            if (flags & TcpFlags::SYN) == TcpFlags::SYN  &&
+            /* no other flag than S,P,U,C,E */
+            (flags & !(TcpFlags::SYN | TcpFlags::PSH | TcpFlags::URG | TcpFlags::CWR | TcpFlags::ECE)) == 0 &&
+            /* not C && E */
+            ((flags & TcpFlags::CWR == 0) || (flags & TcpFlags::ECE == 0)) =>
+        {
             tcp_repl = MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()])
                 .expect("error constructing a TCP packet");
             tcp_repl.set_flags(TcpFlags::ACK);
@@ -140,6 +146,97 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
     use crate::logger::MetaLogger;
+
+    #[test]
+    fn test_tcp_syn() {
+        let masscanned = Masscanned {
+            mac: MacAddr(0, 0, 0, 0, 0, 0),
+            self_ip_list: None,
+            remote_ip_deny_list: None,
+            synack_key: [0x06a0a1d63f305e9b, 0xd4d4bcbb7304875f],
+            iface: None,
+            log: MetaLogger::new(),
+        };
+        /* reference */
+        let ip_src = IpAddr::V4(Ipv4Addr::new(27, 198, 143, 1));
+        let ip_dst = IpAddr::V4(Ipv4Addr::new(90, 64, 122, 203));
+        let tcp_sport = 65500;
+        let tcp_dport = 80;
+        let seq = 1234567;
+        let ack = 0;
+        let mut client_info = ClientInfo {
+            mac: ClientInfoSrcDst {
+                src: None,
+                dst: None,
+            },
+            ip: ClientInfoSrcDst {
+                src: Some(ip_src),
+                dst: Some(ip_dst),
+            },
+            transport: None,
+            port: ClientInfoSrcDst {
+                src: Some(tcp_sport),
+                dst: Some(tcp_dport),
+            },
+            cookie: None,
+        };
+        /* flags OK - list is exhaustive */
+        /* aim at imitating a Linux network stack */
+        let flags_ok = [
+            TcpFlags::SYN,
+            TcpFlags::SYN | TcpFlags::PSH,
+            TcpFlags::SYN | TcpFlags::URG,
+            TcpFlags::SYN | TcpFlags::CWR,
+            TcpFlags::SYN | TcpFlags::ECE,
+            TcpFlags::SYN | TcpFlags::PSH | TcpFlags::URG,
+            TcpFlags::SYN | TcpFlags::PSH | TcpFlags::CWR,
+            TcpFlags::SYN | TcpFlags::PSH | TcpFlags::ECE,
+            TcpFlags::SYN | TcpFlags::PSH | TcpFlags::ECE,
+            TcpFlags::SYN | TcpFlags::URG | TcpFlags::CWR,
+            TcpFlags::SYN | TcpFlags::URG | TcpFlags::ECE,
+            TcpFlags::SYN | TcpFlags::PSH | TcpFlags::URG | TcpFlags::CWR,
+            TcpFlags::SYN | TcpFlags::PSH | TcpFlags::URG | TcpFlags::ECE,
+        ];
+        for flags in flags_ok {
+            let mut tcp_req =
+                MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()]).unwrap();
+            tcp_req.set_source(tcp_sport);
+            tcp_req.set_destination(tcp_dport);
+            tcp_req.set_sequence(seq);
+            tcp_req.set_acknowledgement(ack);
+            tcp_req.set_flags(flags);
+            let some_tcp_repl = repl(&tcp_req.to_immutable(), &masscanned, &mut client_info);
+            if some_tcp_repl == None {
+                panic!("expected a reply, got none for flags: {:?}", flags);
+            }
+            let tcp_repl = some_tcp_repl.unwrap();
+            /* check reply flags */
+            assert!(tcp_repl.get_flags() == (TcpFlags::SYN | TcpFlags::ACK));
+            /* check reply seq and ack */
+            assert!(tcp_repl.get_acknowledgement() == seq.wrapping_add(1));
+        }
+        /* flags KO - list is *not* exhaustive */
+        let flags_ko = [
+            TcpFlags::SYN | TcpFlags::ACK,
+            TcpFlags::SYN | TcpFlags::FIN,
+            TcpFlags::SYN | TcpFlags::CWR | TcpFlags::ECE,
+            TcpFlags::SYN | TcpFlags::PSH | TcpFlags::URG | TcpFlags::CWR | TcpFlags::ECE,
+            TcpFlags::PSH,
+        ];
+        for flags in flags_ko {
+            let mut tcp_req =
+                MutableTcpPacket::owned(vec![0; MutableTcpPacket::minimum_packet_size()]).unwrap();
+            tcp_req.set_source(tcp_sport);
+            tcp_req.set_destination(tcp_dport);
+            tcp_req.set_sequence(seq);
+            tcp_req.set_acknowledgement(ack);
+            tcp_req.set_flags(flags);
+            let some_tcp_repl = repl(&tcp_req.to_immutable(), &masscanned, &mut client_info);
+            if some_tcp_repl != None {
+                panic!("expected no reply, got one");
+            }
+        }
+    }
 
     #[test]
     fn test_tcp_fin_ack() {
