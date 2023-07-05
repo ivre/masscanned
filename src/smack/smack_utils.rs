@@ -1,4 +1,5 @@
 bitflags! {
+    #[derive(Clone, Copy)]
     pub struct SmackFlags: usize {
         const EMPTY         = 0x00;
         const ANCHOR_BEGIN  = 0x01;

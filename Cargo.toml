@@ -21,24 +21,24 @@ authors = ["_Frky <3105926+Frky@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-bitflags = "1.2.1"
+bitflags = "2.3.3"
 byteorder = "1.4.3"
-chrono = "0.4.23"
-clap = "4.0.32"
+chrono = "0.4.26"
+clap = "4.3.10"
 dns-parser = "0.8.0"
 flate2 = "1.0"
-itertools = "0.10.3"
+itertools = "0.11.0"
 lazy_static = "1.4.0"
-log = "0.4.11"
+log = "0.4.19"
 netdevice = "0.1.1"
-pcap = "1.0.0"
-pcap-file = "1.1.1"
-pnet = { version = "0.31.0", features = ["std"] }
+pcap = "1.1.0"
+pcap-file = "2.0.0"
+pnet = { version = "0.33.0", features = ["std"] }
 rand = "0.8.4"
 siphasher = "0.3"
 stderrlog = "0.5.4"
-strum = "0.24.1"
-strum_macros = "0.24.2"
+strum = "0.25.0"
+strum_macros = "0.25.1"
 
 [[bin]]
 name = "masscanned"

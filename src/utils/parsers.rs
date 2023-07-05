@@ -5,12 +5,12 @@ use std::io::BufReader;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use log::*;
-use pcap_file::pcap::{Packet, PcapReader};
+use pcap_file::pcap::{PcapPacket, PcapReader};
 use pnet::packet::{
     ethernet::{EtherTypes, EthernetPacket},
     ipv4::Ipv4Packet,
     ipv6::Ipv6Packet,
-    Packet as Pkt,
+    Packet,
 };
 
 /* Generic IP packet (either IPv4 or IPv6) */
@@ -173,7 +173,7 @@ impl IpAddrParser for &str {
 }
 /* Get the IP address of source and dest. from an IP packet.
  * works with both IPv4 and IPv6 packets/addresses */
-fn extract_ip(pkt: Packet) -> Option<(IpAddr, IpAddr)> {
+fn extract_ip(pkt: PcapPacket) -> Option<(IpAddr, IpAddr)> {
     let eth = EthernetPacket::new(&pkt.data).expect("error parsing Ethernet packet");
     let payload = eth.payload();
     let ip = match eth.get_ethertype() {
@@ -206,13 +206,13 @@ impl IpAddrParser for PcapReader<std::fs::File> {
     /* Extract IP addresses (v4 and v6) from a capture and count occurrences of
      * each. */
     fn extract_ip_addresses_with_count(
-        self: PcapReader<std::fs::File>,
+        mut self: PcapReader<std::fs::File>,
         blacklist: Option<HashSet<IpAddr>>,
     ) -> HashMap<IpAddr, u32> {
         let mut ip_addresses = HashMap::new();
         // pcap.map(fn) , map_Ok
         // .iter, into_iter
-        for pkt in self {
+        while let Some(pkt) = self.next_packet() {
             match pkt {
                 Ok(pkt) => {
                     // map_Some map_None
@@ -246,13 +246,13 @@ impl IpAddrParser for PcapReader<std::fs::File> {
         ip_addresses
     }
     fn extract_ip_addresses_only(
-        self: PcapReader<std::fs::File>,
+        mut self: PcapReader<std::fs::File>,
         blacklist: Option<HashSet<IpAddr>>,
     ) -> HashSet<IpAddr> {
         let mut ip_addresses = HashSet::new();
         // pcap.map(fn) , map_Ok
         // .iter, into_iter
-        for pkt in self {
+        while let Some(pkt) = self.next_packet() {
             match pkt {
                 Ok(pkt) => {
                     // map_Some map_None
