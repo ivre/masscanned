@@ -43,6 +43,8 @@ protocols.
 
 ## Try it locally
 
+### On your host
+
 1. Build **masscanned**
 ```
 $ cargo build
@@ -71,6 +73,29 @@ $ cargo build
 # ping 192.168.0.1
 # nc -n -v 192.168.0.1 80
 # nc -n -v -u 192.168.0.1 80
+...
+```
+
+### In a Docker
+
+1. Install docker:
+```
+# apt install docker.io
+```
+1. Build docker container:
+```
+$ cd masscanned/docker && docker build -t masscanned:test .
+```
+1. Run docker container:
+```
+$ docker run --cap-add=NET_ADMIN masscanned:test
+```
+1. Send packets to **masscanned**
+```
+# arping 172.17.0.2
+# ping 172.17.0.2
+# nc -n -v 172.17.0.2 80
+# nc -n -v -u 172.17.0.2 80
 ...
 ```
 
