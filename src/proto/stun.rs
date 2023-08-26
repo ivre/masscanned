@@ -354,7 +354,7 @@ impl Into<Vec<u8>> for StunPacket {
 pub fn repl<'a>(
     data: &'a [u8],
     _masscanned: &Masscanned,
-    mut client_info: &mut ClientInfo,
+    client_info: &mut ClientInfo,
     _tcb: Option<&mut TCPControlBlock>,
 ) -> Option<Vec<u8>> {
     debug!("receiving STUN data");
