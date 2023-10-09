@@ -196,7 +196,7 @@ fn main() {
         );
         return;
     };
-    if iface.flags & (netdevice::IFF_UP.bits() as u32) == 0 {
+    if !iface.is_up() {
         error!("specified interface is DOWN");
         return;
     }
@@ -286,7 +286,7 @@ fn main() {
     let (mut tx, mut rx) = get_channel(masscanned.iface.unwrap());
     loop {
         /* check if network interface is still up */
-        if masscanned.iface.unwrap().flags & (netdevice::IFF_UP.bits() as u32) == 0 {
+        if !masscanned.iface.unwrap().is_up() {
             error!("interface is DOWN - aborting");
             break;
         }
