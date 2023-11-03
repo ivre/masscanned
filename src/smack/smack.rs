@@ -61,7 +61,7 @@ pub struct Smack {
 }
 
 fn make_copy_of_pattern(pattern: &[u8], is_nocase: bool) -> Vec<u8> {
-    let mut p = pattern.clone().to_vec();
+    let mut p = pattern.to_vec();
     for i in 0..p.len() {
         if is_nocase {
             p[i] = p[i].to_ascii_lowercase();
