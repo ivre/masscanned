@@ -1,5 +1,5 @@
 # This file is part of masscanned.
-# Copyright 2021 - 2023 The IVRE project
+# Copyright 2021 - 2024 The IVRE project
 #
 # Masscanned is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -14,16 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
-FROM debian:12 AS builder
+FROM debian:12 AS fetcher
 
-ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get -q update && \
+    apt-get -qy --no-install-recommends install ca-certificates curl && \
+    curl -L https://github.com/ivre/masscanned/archive/refs/heads/master.tar.gz | tar zxf -
 
-RUN echo "deb http://deb.debian.org/debian testing main" > /etc/apt/sources.list.d/testing.list && \
-    apt-get -q update && \
-    apt-get -qy --no-install-recommends install cargo ca-certificates curl && \
-    curl -L https://github.com/ivre/masscanned/archive/refs/heads/master.tar.gz | tar zxf - && \
-    cd masscanned-master && \
+
+FROM rust AS builder
+
+COPY --from=fetcher /masscanned-master /masscanned-master
+
+RUN cd masscanned-master && \
     cargo build --release
+
 
 FROM debian:12
 LABEL maintainer="Pierre LALET <pierre@droids-corp.org>"
