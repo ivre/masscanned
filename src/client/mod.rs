@@ -16,4 +16,4 @@
 
 mod client_info;
 
-pub use client_info::ClientInfo;
+pub use client_info::{ClientInfo, ClientInfoSrcDst};
