@@ -1,5 +1,5 @@
 # This file is part of masscanned.
-# Copyright 2021 - The IVRE project
+# Copyright 2021 - 2024 The IVRE project
 #
 # Masscanned is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -101,3 +101,20 @@ jobs:
     - name: Display logs
       run: echo STDOUT; cat test/res/masscanned.stdout && echo && echo STDERR && cat test/res/masscanned.stderr
       if: failure()
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Git checkout
+      uses: actions/checkout@v2
+
+    - name: Build archive
+      run: git archive --format=tar --prefix=masscanned-master/ HEAD -o docker/masscanned.tar
+
+    - name: Build image
+      uses: docker/build-push-action@v5
+      with:
+        push: false
+        context: docker/
+        file: docker/Dockerfile-local

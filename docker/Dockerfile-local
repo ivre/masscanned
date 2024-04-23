@@ -14,16 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Masscanned. If not, see <http://www.gnu.org/licenses/>.
 
-FROM debian:12 AS fetcher
-
-RUN apt-get -q update && \
-    apt-get -qy --no-install-recommends install ca-certificates curl && \
-    curl -L https://github.com/ivre/masscanned/archive/refs/heads/master.tar.gz | tar zxf -
-
-
 FROM rust AS builder
 
-COPY --from=fetcher /masscanned-master /masscanned-master
+ADD masscanned.tar ./
 
 RUN cd masscanned-master && \
     cargo build --release
