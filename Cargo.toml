@@ -37,7 +37,7 @@ rand = "0.8.4"
 siphasher = "1.0"
 stderrlog = "0.6.0"
 strum = "0.26.2"
-strum_macros = "0.26.2"
+strum_macros = "0.26.3"
 
 [[bin]]
 name = "masscanned"
