@@ -44,8 +44,12 @@ def test_ipv4_udp_dns_in_a():
                 check_ip_checksum(resp)
                 assert UDP in resp, "no UDP layer found"
                 udp = resp[UDP]
-                assert udp.sport == dport, "unexpected UDP sport: {}".format(udp.sport)
-                assert udp.dport == sport, "unexpected UDP dport: {}".format(udp.dport)
+                assert (
+                    udp.sport == dport
+                ), f"unexpected UDP sport: {udp.sport!r} ({domain})"
+                assert (
+                    udp.dport == sport
+                ), f"unexpected UDP dport: {udp.dport!r} ({domain})"
                 if DNS not in udp:
                     try:
                         dns_rep = DNS(udp.load)
@@ -53,7 +57,9 @@ def test_ipv4_udp_dns_in_a():
                         raise AssertionError("no DNS layer found")
                 else:
                     dns_rep = udp[DNS]
-                assert dns_rep.id == 1234, f"unexpected id value: {dns_rep.id}"
+                assert (
+                    dns_rep.id == 1234
+                ), f"unexpected id value: {dns_rep.id!r} ({domain})"
                 assert dns_rep.qr, "unexpected qr value"
                 assert dns_rep.opcode == 0, "unexpected opcode value"
                 assert dns_rep.aa, "unexpected aa value"
@@ -62,7 +68,9 @@ def test_ipv4_udp_dns_in_a():
                 assert not dns_rep.ra, "unexpected ra value"
                 assert dns_rep.z == 0, "unexpected z value"
                 assert dns_rep.rcode == 0, "unexpected rcode value"
-                assert dns_rep.qdcount == 1, "unexpected qdcount value"
+                assert (
+                    dns_rep.qdcount == 1
+                ), f"unexpected qdcount value: {dns_rep.qdcount!r} vs 1 ({domain})"
                 assert dns_rep.ancount == 1, "unexpected ancount value"
                 assert dns_rep.nscount == 0, "unexpected nscount value"
                 assert dns_rep.arcount == 0, "unexpected arcount value"
@@ -90,11 +98,11 @@ def test_ipv4_udp_dns_in_a_multiple_queries():
     dports = [53, 5353, 80, 161, 24732]
     for sport in sports:
         for dport in dports:
-            qd = (
-                DNSQR(qname="www.example1.com", qtype="A", qclass="IN")
-                / DNSQR(qname="www.example2.com", qtype="A", qclass="IN")
-                / DNSQR(qname="www.example3.com", qtype="A", qclass="IN")
-            )
+            qd = [
+                DNSQR(qname="www.example1.com", qtype="A", qclass="IN"),
+                DNSQR(qname="www.example2.com", qtype="A", qclass="IN"),
+                DNSQR(qname="www.example3.com", qtype="A", qclass="IN"),
+            ]
             dns_req = DNS(id=1234, rd=False, opcode=0, qd=qd)
             req = (
                 Ether(dst=MAC_ADDR)
@@ -125,7 +133,9 @@ def test_ipv4_udp_dns_in_a_multiple_queries():
             assert not dns_rep.ra, "unexpected ra value"
             assert dns_rep.z == 0, "unexpected z value"
             assert dns_rep.rcode == 0, "unexpected rcode value"
-            assert dns_rep.qdcount == 3, "unexpected qdcount value"
+            assert (
+                dns_rep.qdcount == 3
+            ), f"unexpected qdcount value: {dns_rep.qdcount} vs 3"
             assert dns_rep.ancount == 3, "unexpected ancount value"
             assert dns_rep.nscount == 0, "unexpected nscount value"
             assert dns_rep.arcount == 0, "unexpected arcount value"
