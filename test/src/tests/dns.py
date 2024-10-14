@@ -98,11 +98,11 @@ def test_ipv4_udp_dns_in_a_multiple_queries():
     dports = [53, 5353, 80, 161, 24732]
     for sport in sports:
         for dport in dports:
-            qd = (
-                DNSQR(qname="www.example1.com", qtype="A", qclass="IN")
-                / DNSQR(qname="www.example2.com", qtype="A", qclass="IN")
-                / DNSQR(qname="www.example3.com", qtype="A", qclass="IN")
-            )
+            qd = [
+                DNSQR(qname="www.example1.com", qtype="A", qclass="IN"),
+                DNSQR(qname="www.example2.com", qtype="A", qclass="IN"),
+                DNSQR(qname="www.example3.com", qtype="A", qclass="IN"),
+            ]
             dns_req = DNS(id=1234, rd=False, opcode=0, qd=qd)
             req = (
                 Ether(dst=MAC_ADDR)
