@@ -21,7 +21,7 @@ authors = ["_Frky <3105926+Frky@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-bitflags = "2.6.0"
+bitflags = "2.9.0"
 byteorder = "1.5.0"
 chrono = "0.4.39"
 clap = "4.5.23"
