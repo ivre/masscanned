@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # This file is part of masscanned.
-# Copyright 2021 - The IVRE project
+# Copyright 2021 - 2025 - The IVRE project
 #
 # Masscanned is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ from src.conf import IPV4_ADDR, IPV6_ADDR, MAC_ADDR, OUTDIR
 
 
 def cleanup_net(iface):
-    global ipfile
     subprocess.check_call(["ip", "link", "delete", iface])
     subprocess.check_call(
         [
@@ -64,7 +63,6 @@ def cleanup_net(iface):
 
 
 def setup_net(iface):
-    global IPV4_ADDR
     # create the interfaces pair
     atexit.register(functools.partial(cleanup_net, f"{iface}a"))
     subprocess.check_call(
