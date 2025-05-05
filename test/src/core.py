@@ -1,5 +1,5 @@
 # This file is part of masscanned.
-# Copyright 2021 - The IVRE project
+# Copyright 2021 - 2025 - The IVRE project
 #
 # Masscanned is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ ERRORS = []
 
 # decorator to automatically add a function to tests
 def test(f):
-    global ERRORS, TESTS
     OK = "\033[1mOK\033[0m"
     KO = "\033[1m\033[1;%dmKO\033[0m" % 31
     fname = f.__name__.ljust(50, ".")
@@ -61,7 +60,6 @@ def test(f):
 
 
 def test_all(m):
-    global ERRORS, TESTS
     # execute tests
     for t in TESTS:
         # perform unit test
