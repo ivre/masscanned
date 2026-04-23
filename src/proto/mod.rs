@@ -217,6 +217,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         /***** TEST STUN - MAGIC *****/
@@ -278,6 +279,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         /***** TEST SSH *****/
@@ -320,6 +322,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         /***** TEST GHOST *****/
@@ -354,6 +357,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         /***** TEST COMPLETE REQUEST *****/
@@ -376,6 +380,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let mut client_info = ClientInfo::new();

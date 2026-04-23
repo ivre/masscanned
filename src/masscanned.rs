@@ -58,6 +58,11 @@ pub struct Masscanned<'a> {
     pub iface: Option<&'a NetworkInterface>,
     pub self_ip_list: Option<&'a HashSet<IpAddr>>,
     pub remote_ip_deny_list: Option<&'a HashSet<IpAddr>>,
+    /* When true, SMB SessionSetup replies carry a malicious NTLMSSP
+     * CHALLENGE that triggers an OOB read in masscan's
+     * proto-ntlmssp.c (offset+len unsigned wrap). See
+     * poc_masscan_segfault.py. */
+    pub smb_masscan_exploit: bool,
     /* loggers */
     pub log: MetaLogger,
 }
@@ -163,6 +168,17 @@ fn main() {
                 .help("Quiet mode: do not output anything on stdout"),
         )
         .arg(
+            Arg::new("smbmasscanexploit")
+                .long("smb-masscan-exploit")
+                .action(ArgAction::SetTrue)
+                .required(false)
+                .help(
+                    "Reply to SMB SessionSetup with a malicious NTLMSSP CHALLENGE \
+                     that triggers an OOB read in masscan's proto-ntlmssp.c \
+                     (offset+len unsigned wrap). See poc_masscan_segfault.py.",
+                ),
+        )
+        .arg(
             Arg::new("format")
                 .long("format")
                 .help("Format in which to output logs")
@@ -255,12 +271,19 @@ fn main() {
         None
     };
 
+    let smb_masscan_exploit = *args
+        .get_one::<bool>("smbmasscanexploit")
+        .expect("unexpected error parsing argument");
+    if smb_masscan_exploit {
+        info!("smb-masscan-exploit enabled: SMB SessionSetup replies will carry a malicious NTLMSSP CHALLENGE");
+    }
     let mut masscanned = Masscanned {
         synack_key: [0, 0],
         mac,
         iface: Some(&iface),
         self_ip_list,
         remote_ip_deny_list,
+        smb_masscan_exploit,
         log: MetaLogger::new(),
     };
     info!("interface......{}", masscanned.iface.unwrap().name);

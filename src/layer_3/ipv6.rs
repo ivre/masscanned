@@ -217,6 +217,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         for proto in [
@@ -272,6 +273,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: Some(&blacklist_ips),
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let mut ip_req =

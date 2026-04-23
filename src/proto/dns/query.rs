@@ -240,6 +240,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let ip_src = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
@@ -308,6 +309,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
