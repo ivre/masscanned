@@ -444,6 +444,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let payload_resp = if let Some(r) = repl(payload, &masscanned, &mut client_info, None) {
@@ -505,6 +506,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V6(test_ip_addr));
@@ -558,6 +560,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V4(test_ip_addr));
@@ -609,6 +612,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         client_info.ip.src = Some(IpAddr::V4(test_ip_addr));

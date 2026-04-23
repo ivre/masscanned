@@ -174,6 +174,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         /* Legitimate solicitation */
@@ -248,6 +249,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let mut icmpv6_echo_req = MutableIcmpv6Packet::owned(vec![
