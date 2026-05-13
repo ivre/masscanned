@@ -294,6 +294,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -318,6 +319,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -343,6 +345,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();
@@ -368,6 +371,7 @@ mod tests {
             iface: None,
             self_ip_list: None,
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let client_info = ClientInfo::new();

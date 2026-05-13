@@ -227,6 +227,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         for proto in [EtherTypes::Ipv4, EtherTypes::Ipv6, EtherTypes::Arp] {
@@ -266,6 +267,7 @@ mod tests {
             iface: None,
             self_ip_list: Some(&ips),
             remote_ip_deny_list: None,
+            smb_masscan_exploit: false,
             log: MetaLogger::new(),
         };
         let mut eth_req = MutableEthernetPacket::owned(vec![
